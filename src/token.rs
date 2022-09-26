@@ -1,3 +1,4 @@
+/// A token in the Monkey language.
 #[derive(Debug, PartialEq)]
 pub enum Token {
     Illegal,
