@@ -17,7 +17,7 @@ impl<'a> Lexer<'a> {
     /// # Examples
     /// ```
     /// use monkey_rs::lexer::Lexer;
-    /// let lexer = Lexer::new("1234");
+    /// let mut lexer = Lexer::new("1234");
     /// ```
     pub fn new(input: &'a str) -> Self {
         let mut lex = Self {
@@ -30,8 +30,23 @@ impl<'a> Lexer<'a> {
         lex
     }
 
-    /// Return the next token found in the lexer's input.
-    fn next_token(&mut self) -> Token {
+    /// Return the next token found in the lexer's input. It returns
+    /// [Token::EOF](crate::token::Token::EOF) when the end of the input is exceeded or reached.
+    ///
+    /// # Examples
+    /// ```
+    /// use monkey_rs::lexer::Lexer;
+    /// use monkey_rs::token::Token;
+    ///
+    /// let mut lexer = Lexer::new("let x = 42;");
+    /// assert_eq!(lexer.next_token(), Token::Let);
+    /// assert_eq!(lexer.next_token(), Token::Ident("x".to_owned()));
+    /// assert_eq!(lexer.next_token(), Token::Assign);
+    /// assert_eq!(lexer.next_token(), Token::Int("42".to_owned()));
+    /// assert_eq!(lexer.next_token(), Token::Semicolon);
+    /// assert_eq!(lexer.next_token(), Token::EOF);
+    /// ```
+    pub fn next_token(&mut self) -> Token {
         self.skip_whitespace();
 
         let token = match self.ch {
