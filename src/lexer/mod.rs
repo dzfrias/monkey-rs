@@ -46,7 +46,7 @@ impl<'a> Lexer<'a> {
             '\0' => Token::EOF,
 
             '0'..='9' => {
-                return Token::Int(self.read_number());
+                return Token::Int(self.read_number().to_owned());
             }
 
             'a'..='z' | 'A'..='Z' | '_' => {
@@ -80,18 +80,14 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    /// Advances the lexer to consume a number. This function will panic if the
-    /// consumed string is unable to converted to an i32.
-    fn read_number(&mut self) -> i32 {
+    /// Advances the lexer to consume a number. Does not parse the number, and just keeps it as a
+    /// string.
+    fn read_number(&mut self) -> &str {
         let pos = self.pos;
         while self.ch.is_digit(10) {
             self.read_char();
         }
-        let str_num = &self.input[pos..self.pos];
-        // TODO: Make it not panic, user could input a number larger than i32 limit
-        str_num
-            .parse()
-            .expect("Could not parse to i32, should not happen")
+        &self.input[pos..self.pos]
     }
 
     /// Consumes the next characters until an a-z, A-Z or _ character is reached.
@@ -122,28 +118,40 @@ mod tests {
 
         let all_expected = vec![
             Token::Let,
-            Token::Ident(String::from("five")),
+            Token::Ident("five".to_owned()),
             Token::Assign,
-            Token::Int(5),
+            Token::Int("5".to_owned()),
             Token::Semicolon,
             Token::Let,
-            Token::Ident(String::from("ten")),
+            Token::Ident("ten".to_owned()),
             Token::Assign,
-            Token::Int(10),
+            Token::Int("10".to_owned()),
             Token::Semicolon,
             Token::Let,
-            Token::Ident(String::from("add")),
+            Token::Ident("add".to_owned()),
             Token::Assign,
             Token::Function,
             Token::Lparen,
-            Token::Ident(String::from("x")),
+            Token::Ident("x".to_owned()),
             Token::Comma,
-            Token::Ident(String::from("y")),
+            Token::Ident("y".to_owned()),
             Token::Rparen,
             Token::Lbrace,
-            Token::Ident(String::from("x")),
+            Token::Ident("x".to_owned()),
             Token::Plus,
-            Token::Ident(String::from("y")),
+            Token::Ident("y".to_owned()),
+            Token::Semicolon,
+            Token::Rbrace,
+            Token::Semicolon,
+            Token::Let,
+            Token::Ident("result".to_owned()),
+            Token::Assign,
+            Token::Ident("add".to_owned()),
+            Token::Lparen,
+            Token::Ident("five".to_owned()),
+            Token::Comma,
+            Token::Ident("ten".to_owned()),
+            Token::Rparen,
             Token::Semicolon,
         ];
 
