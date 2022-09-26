@@ -1,5 +1,4 @@
 #[derive(Debug, PartialEq)]
-#[allow(dead_code)]
 pub enum Token {
     Illegal,
     EOF,
@@ -16,6 +15,7 @@ pub enum Token {
     Comma,
     Semicolon,
 
+    // Pairs
     Lparen,
     Rparen,
     Lbrace,
