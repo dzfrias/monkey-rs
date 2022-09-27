@@ -65,7 +65,7 @@ impl<'a> Lexer<'a> {
             }
 
             _ => {
-                if self.ch.is_alphabetic() {
+                if self.ch.is_alphabetic() || self.ch == '_' {
                     let literal = self.read_identifier();
                     return match literal.as_str() {
                         "fn" => Token::Function,
@@ -80,44 +80,37 @@ impl<'a> Lexer<'a> {
         token
     }
 
-    /// Advances the lexer by one character, returning a NULL character if the end of the input is
-    /// reached.
     fn read_char(&mut self) {
         self.ch = self.input.chars().nth(self.read_pos).unwrap_or('\0');
         self.pos = self.read_pos;
         self.read_pos += 1;
     }
 
-    /// Advances the lexer over whitespace until a non-whitespace character is
-    /// reached.
     fn skip_whitespace(&mut self) {
         while self.ch.is_ascii_whitespace() {
             self.read_char();
         }
     }
 
-    /// Advances the lexer to consume a number. Does not parse the number, and just keeps it as a
-    /// string.
     fn read_number(&mut self) -> String {
         let pos = self.pos;
         while self.ch.is_digit(10) {
             self.read_char();
         }
-        self.read_chars(pos, self.pos)
+        self.slice(pos, self.pos)
     }
 
-    /// Consumes the next characters until an a-z, A-Z or _ character is reached.
     fn read_identifier(&mut self) -> String {
         let pos = self.pos;
-        while self.ch.is_alphabetic() {
+        while self.ch.is_alphabetic() || self.ch == '_' {
             self.read_char();
         }
-        self.read_chars(pos, self.pos)
+        self.slice(pos, self.pos)
     }
 
-    fn read_chars(&self, start: usize, end: usize) -> String {
-        let ident = self.input.chars().take(end).skip(start).collect::<String>();
-        ident
+    fn slice(&self, start: usize, end: usize) -> String {
+        let substr = self.input.chars().take(end).skip(start).collect::<String>();
+        substr
     }
 }
 
