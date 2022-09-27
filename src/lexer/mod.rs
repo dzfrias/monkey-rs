@@ -176,23 +176,38 @@ mod tests {
     }
 
     #[test]
-    fn test_next_token_underscore() {
+    fn next_token_parses_underscore_ident() {
         let input = "hello_world";
         let mut lex = Lexer::new(input);
-        assert_eq!(lex.next_token(), Token::Ident("hello_world".to_owned()))
+        assert_eq!(Token::Ident("hello_world".to_owned()), lex.next_token())
     }
 
     #[test]
-    fn test_next_token_unicode() {
+    fn next_token_parses_non_ascii_character() {
         let input = "你好";
         let mut lex = Lexer::new(input);
-        assert_eq!(lex.next_token(), Token::Ident("你好".to_owned()))
+        assert_eq!(Token::Ident("你好".to_owned()), lex.next_token())
     }
 
     #[test]
-    fn test_next_token_illegal() {
+    fn next_token_gives_illegal_with_non_alphabetic_character() {
         let input = "👍";
         let mut lex = Lexer::new(input);
-        assert_eq!(lex.next_token(), Token::Illegal)
+        assert_eq!(Token::Illegal, lex.next_token())
+    }
+
+    #[test]
+    fn next_token_gives_eof() {
+        let input = "";
+        let mut lex = Lexer::new(input);
+        assert_eq!(Token::EOF, lex.next_token());
+    }
+
+    #[test]
+    fn next_token_recognizes_keywords() {
+        let input = "let fn";
+        let mut lex = Lexer::new(input);
+        assert_eq!(Token::Let, lex.next_token());
+        assert_eq!(Token::Function, lex.next_token());
     }
 }
