@@ -61,19 +61,20 @@ impl<'a> Lexer<'a> {
             '\0' => Token::EOF,
 
             '0'..='9' => {
-                return Token::Int(self.read_number().to_owned());
+                return Token::Int(self.read_number());
             }
 
-            'a'..='z' | 'A'..='Z' | '_' => {
-                let literal = self.read_identifier();
-                return match literal {
-                    "fn" => Token::Function,
-                    "let" => Token::Let,
-                    _ => Token::Ident(literal.to_owned()),
-                };
+            _ => {
+                if self.ch.is_alphabetic() {
+                    let literal = self.read_identifier();
+                    return match literal.as_str() {
+                        "fn" => Token::Function,
+                        "let" => Token::Let,
+                        _ => Token::Ident(literal.to_owned()),
+                    };
+                }
+                Token::Illegal
             }
-
-            _ => Token::Illegal,
         };
         self.read_char();
         token
@@ -97,21 +98,26 @@ impl<'a> Lexer<'a> {
 
     /// Advances the lexer to consume a number. Does not parse the number, and just keeps it as a
     /// string.
-    fn read_number(&mut self) -> &str {
+    fn read_number(&mut self) -> String {
         let pos = self.pos;
         while self.ch.is_digit(10) {
             self.read_char();
         }
-        &self.input[pos..self.pos]
+        self.read_chars(pos, self.pos)
     }
 
     /// Consumes the next characters until an a-z, A-Z or _ character is reached.
-    fn read_identifier(&mut self) -> &str {
+    fn read_identifier(&mut self) -> String {
         let pos = self.pos;
-        while matches!(self.ch, 'a'..='z' | 'A'..='Z' | '_') {
+        while self.ch.is_alphabetic() {
             self.read_char();
         }
-        &self.input[pos..self.pos]
+        self.read_chars(pos, self.pos)
+    }
+
+    fn read_chars(&self, start: usize, end: usize) -> String {
+        let ident = self.input.chars().take(end).skip(start).collect::<String>();
+        ident
     }
 }
 
@@ -121,19 +127,19 @@ mod tests {
 
     #[test]
     fn test_next_token() {
-        let input = "let five = 5;
+        let input = "let 五 = 5;
         let ten = 10;
 
         let add = fn(x, y) {
             x + y;
         };
 
-        let result = add(five, ten);";
+        let result = add(五, ten);";
         let mut lex = Lexer::new(input);
 
         let all_expected = vec![
             Token::Let,
-            Token::Ident("five".to_owned()),
+            Token::Ident("五".to_owned()),
             Token::Assign,
             Token::Int("5".to_owned()),
             Token::Semicolon,
@@ -163,7 +169,7 @@ mod tests {
             Token::Assign,
             Token::Ident("add".to_owned()),
             Token::Lparen,
-            Token::Ident("five".to_owned()),
+            Token::Ident("五".to_owned()),
             Token::Comma,
             Token::Ident("ten".to_owned()),
             Token::Rparen,
