@@ -49,14 +49,28 @@ impl<'a> Lexer<'a> {
         self.skip_whitespace();
 
         let token = match self.ch {
-            '=' => Token::Assign,
+            '=' => {
+                if self.peek_char() == '=' {
+                    self.read_char();
+                    Token::Eq
+                } else {
+                    Token::Assign
+                }
+            }
             ';' => Token::Semicolon,
             '(' => Token::Lparen,
             ')' => Token::Rparen,
             ',' => Token::Comma,
             '+' => Token::Plus,
             '-' => Token::Minus,
-            '!' => Token::Bang,
+            '!' => {
+                if self.peek_char() == '=' {
+                    self.read_char();
+                    Token::NotEq
+                } else {
+                    Token::Bang
+                }
+            }
             '/' => Token::Slash,
             '*' => Token::Asterisk,
             '<' => Token::Lt,
@@ -92,6 +106,10 @@ impl<'a> Lexer<'a> {
 
     fn read_char(&mut self) {
         self.ch = self.input.next().unwrap_or('\0');
+    }
+
+    fn peek_char(&mut self) -> char {
+        *self.input.peek().unwrap_or(&'\0')
     }
 
     fn skip_whitespace(&mut self) {
@@ -142,7 +160,10 @@ mod tests {
             return true;
         } else {
             return false;
-        }";
+        }
+
+        10 == 10;
+        10 != 9;";
         let mut lex = Lexer::new(input);
 
         let expected_tokens = vec![
@@ -211,6 +232,14 @@ mod tests {
             Token::False,
             Token::Semicolon,
             Token::Rbrace,
+            Token::Int("10".to_owned()),
+            Token::Eq,
+            Token::Int("10".to_owned()),
+            Token::Semicolon,
+            Token::Int("10".to_owned()),
+            Token::NotEq,
+            Token::Int("9".to_owned()),
+            Token::Semicolon,
         ];
 
         for expected in expected_tokens {
@@ -251,6 +280,15 @@ mod tests {
     fn next_token_recognizes_keywords() {
         let keywords = HashMap::from([("let", Token::Let), ("fn", Token::Function)]);
         for (keyword, token) in keywords.iter() {
+            let mut lex = Lexer::new(keyword);
+            assert_eq!(*token, lex.next_token());
+        }
+    }
+
+    #[test]
+    fn next_token_tokenizes_2_length_binary_ops() {
+        let ops = HashMap::from([("==", Token::Eq), ("!=", Token::NotEq)]);
+        for (keyword, token) in ops.iter() {
             let mut lex = Lexer::new(keyword);
             assert_eq!(*token, lex.next_token());
         }

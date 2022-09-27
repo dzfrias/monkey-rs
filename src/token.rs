@@ -19,6 +19,8 @@ pub enum Token {
     // Comparison operators
     Lt,
     Gt,
+    Eq,
+    NotEq,
 
     // Delimiters
     Comma,
