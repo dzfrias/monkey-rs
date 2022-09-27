@@ -102,7 +102,7 @@ impl<'a> Lexer<'a> {
 
     fn read_identifier(&mut self) -> String {
         let pos = self.pos;
-        while self.ch.is_alphabetic() || self.ch == '_' {
+        while self.ch.is_alphabetic() || self.ch == '_' || self.ch.is_ascii_digit() {
             self.read_char();
         }
         self.slice(pos, self.pos)
@@ -116,6 +116,8 @@ impl<'a> Lexer<'a> {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use super::*;
 
     #[test]
@@ -176,14 +178,14 @@ mod tests {
     }
 
     #[test]
-    fn next_token_parses_underscore_ident() {
+    fn next_token_tokenizes_underscore_ident() {
         let input = "hello_world";
         let mut lex = Lexer::new(input);
         assert_eq!(Token::Ident("hello_world".to_owned()), lex.next_token())
     }
 
     #[test]
-    fn next_token_parses_non_ascii_character() {
+    fn next_token_tokenizes_non_ascii_character() {
         let input = "你好";
         let mut lex = Lexer::new(input);
         assert_eq!(Token::Ident("你好".to_owned()), lex.next_token())
@@ -205,9 +207,41 @@ mod tests {
 
     #[test]
     fn next_token_recognizes_keywords() {
-        let input = "let fn";
+        let keywords = HashMap::from([("let", Token::Let), ("fn", Token::Function)]);
+        for (keyword, token) in keywords.iter() {
+            let mut lex = Lexer::new(keyword);
+            assert_eq!(*token, lex.next_token());
+        }
+    }
+
+    #[test]
+    fn next_token_ignores_whitespace() {
+        let input = "	  
+        
+            word";
         let mut lex = Lexer::new(input);
-        assert_eq!(Token::Let, lex.next_token());
-        assert_eq!(Token::Function, lex.next_token());
+        assert_eq!(Token::Ident("word".to_owned()), lex.next_token());
+    }
+
+    #[test]
+    fn next_token_tokenizes_ints() {
+        let input = "123";
+        let mut lex = Lexer::new(input);
+        assert_eq!(Token::Int("123".to_owned()), lex.next_token());
+    }
+
+    #[test]
+    fn next_token_tokenizes_idents_with_num() {
+        let input = "x1";
+        let mut lexer = Lexer::new(input);
+        assert_eq!(Token::Ident("x1".to_owned()), lexer.next_token());
+    }
+
+    #[test]
+    fn next_token_gives_int_with_num_before_ident() {
+        let input = "1x";
+        let mut lexer = Lexer::new(input);
+        assert_eq!(Token::Int("1".to_owned()), lexer.next_token());
+        assert_eq!(Token::Ident("x".to_owned()), lexer.next_token());
     }
 }
