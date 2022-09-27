@@ -46,31 +46,28 @@ impl<'a> Lexer<'a> {
     /// assert_eq!(lexer.next_token(), Token::EOF);
     /// ```
     pub fn next_token(&mut self) -> Token {
+        macro_rules! peek_eq {
+            ($tok:expr, $else_tok:expr) => {
+                if self.peek_char() == '=' {
+                    self.read_char();
+                    $tok
+                } else {
+                    $else_tok
+                }
+            };
+        }
+
         self.skip_whitespace();
 
         let token = match self.ch {
-            '=' => {
-                if self.peek_char() == '=' {
-                    self.read_char();
-                    Token::Eq
-                } else {
-                    Token::Assign
-                }
-            }
+            '=' => peek_eq!(Token::Eq, Token::Assign),
             ';' => Token::Semicolon,
             '(' => Token::Lparen,
             ')' => Token::Rparen,
             ',' => Token::Comma,
             '+' => Token::Plus,
             '-' => Token::Minus,
-            '!' => {
-                if self.peek_char() == '=' {
-                    self.read_char();
-                    Token::NotEq
-                } else {
-                    Token::Bang
-                }
-            }
+            '!' => peek_eq!(Token::NotEq, Token::Bang),
             '/' => Token::Slash,
             '*' => Token::Asterisk,
             '<' => Token::Lt,
