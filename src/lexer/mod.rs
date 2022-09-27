@@ -120,19 +120,19 @@ mod tests {
 
     #[test]
     fn test_next_token() {
-        let input = "let 五 = 5;
+        let input = "let five = 5;
         let ten = 10;
 
         let add = fn(x, y) {
             x + y;
         };
 
-        let result = add(五, ten);";
+        let result = add(five, ten);";
         let mut lex = Lexer::new(input);
 
-        let all_expected = vec![
+        let expected_tokens = vec![
             Token::Let,
-            Token::Ident("五".to_owned()),
+            Token::Ident("five".to_owned()),
             Token::Assign,
             Token::Int("5".to_owned()),
             Token::Semicolon,
@@ -162,16 +162,37 @@ mod tests {
             Token::Assign,
             Token::Ident("add".to_owned()),
             Token::Lparen,
-            Token::Ident("五".to_owned()),
+            Token::Ident("five".to_owned()),
             Token::Comma,
             Token::Ident("ten".to_owned()),
             Token::Rparen,
             Token::Semicolon,
         ];
 
-        for expected in all_expected {
+        for expected in expected_tokens {
             let tok = lex.next_token();
             assert_eq!(expected, tok);
         }
+    }
+
+    #[test]
+    fn test_next_token_underscore() {
+        let input = "hello_world";
+        let mut lex = Lexer::new(input);
+        assert_eq!(lex.next_token(), Token::Ident("hello_world".to_owned()))
+    }
+
+    #[test]
+    fn test_next_token_unicode() {
+        let input = "你好";
+        let mut lex = Lexer::new(input);
+        assert_eq!(lex.next_token(), Token::Ident("你好".to_owned()))
+    }
+
+    #[test]
+    fn test_next_token_illegal() {
+        let input = "👍";
+        let mut lex = Lexer::new(input);
+        assert_eq!(lex.next_token(), Token::Illegal)
     }
 }
