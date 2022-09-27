@@ -55,6 +55,12 @@ impl<'a> Lexer<'a> {
             ')' => Token::Rparen,
             ',' => Token::Comma,
             '+' => Token::Plus,
+            '-' => Token::Minus,
+            '!' => Token::Bang,
+            '/' => Token::Slash,
+            '*' => Token::Asterisk,
+            '<' => Token::Lt,
+            '>' => Token::Gt,
             '{' => Token::Lbrace,
             '}' => Token::Rbrace,
             '\0' => Token::EOF,
@@ -69,6 +75,11 @@ impl<'a> Lexer<'a> {
                     return match literal.as_str() {
                         "fn" => Token::Function,
                         "let" => Token::Let,
+                        "true" => Token::True,
+                        "false" => Token::False,
+                        "if" => Token::If,
+                        "else" => Token::Else,
+                        "return" => Token::Return,
                         _ => Token::Ident(literal.to_owned()),
                     };
                 }
@@ -123,7 +134,15 @@ mod tests {
             x + y;
         };
 
-        let result = add(five, ten);";
+        let result = add(five, ten);
+        !-/*5;
+        5 < 10 > 5;
+
+        if (5 < 10) {
+            return true;
+        } else {
+            return false;
+        }";
         let mut lex = Lexer::new(input);
 
         let expected_tokens = vec![
@@ -163,6 +182,35 @@ mod tests {
             Token::Ident("ten".to_owned()),
             Token::Rparen,
             Token::Semicolon,
+            Token::Bang,
+            Token::Minus,
+            Token::Slash,
+            Token::Asterisk,
+            Token::Int("5".to_owned()),
+            Token::Semicolon,
+            Token::Int("5".to_owned()),
+            Token::Lt,
+            Token::Int("10".to_owned()),
+            Token::Gt,
+            Token::Int("5".to_owned()),
+            Token::Semicolon,
+            Token::If,
+            Token::Lparen,
+            Token::Int("5".to_owned()),
+            Token::Lt,
+            Token::Int("10".to_owned()),
+            Token::Rparen,
+            Token::Lbrace,
+            Token::Return,
+            Token::True,
+            Token::Semicolon,
+            Token::Rbrace,
+            Token::Else,
+            Token::Lbrace,
+            Token::Return,
+            Token::False,
+            Token::Semicolon,
+            Token::Rbrace,
         ];
 
         for expected in expected_tokens {
