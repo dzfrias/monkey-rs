@@ -7,4 +7,6 @@ Thorsten Ball.
 
 ## Extra Features
 Here are a few extra features in this implementation of Monkey:
-- Alphabetic unicode character support for variables (一, for example)
+- Alphabetic unicode character support for identifiers ("一", for example)
+- Numbers in identifiers where the number is not the first part of the
+  identifier ("x1", for example)
