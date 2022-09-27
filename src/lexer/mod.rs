@@ -1,14 +1,14 @@
 #![allow(dead_code)]
 
+use std::{iter::Peekable, str::Chars};
+
 use crate::token::Token;
 
 /// A lexer that can an input sting and turn it into a stream of Monkey
 /// [tokens](crate::token::Token).
 #[derive(Debug)]
 pub struct Lexer<'a> {
-    input: &'a str,
-    pos: usize,
-    read_pos: usize,
+    input: Peekable<Chars<'a>>,
     ch: char,
 }
 
@@ -20,10 +20,9 @@ impl<'a> Lexer<'a> {
     /// let mut lexer = Lexer::new("1234");
     /// ```
     pub fn new(input: &'a str) -> Self {
+        let chars = input.chars().peekable();
         let mut lex = Self {
-            input,
-            pos: 0,
-            read_pos: 0,
+            input: chars,
             ch: '\0',
         };
         lex.read_char();
@@ -81,9 +80,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn read_char(&mut self) {
-        self.ch = self.input.chars().nth(self.read_pos).unwrap_or('\0');
-        self.pos = self.read_pos;
-        self.read_pos += 1;
+        self.ch = self.input.next().unwrap_or('\0');
     }
 
     fn skip_whitespace(&mut self) {
@@ -93,24 +90,21 @@ impl<'a> Lexer<'a> {
     }
 
     fn read_number(&mut self) -> String {
-        let pos = self.pos;
+        let mut number = String::new();
         while self.ch.is_digit(10) {
+            number.push(self.ch);
             self.read_char();
         }
-        self.slice(pos, self.pos)
+        number
     }
 
     fn read_identifier(&mut self) -> String {
-        let pos = self.pos;
+        let mut ident = String::new();
         while self.ch.is_alphabetic() || self.ch == '_' || self.ch.is_ascii_digit() {
+            ident.push(self.ch);
             self.read_char();
         }
-        self.slice(pos, self.pos)
-    }
-
-    fn slice(&self, start: usize, end: usize) -> String {
-        let substr = self.input.chars().take(end).skip(start).collect::<String>();
-        substr
+        ident
     }
 }
 
