@@ -163,7 +163,7 @@ mod tests {
         10 != 9;";
         let mut lex = Lexer::new(input);
 
-        let expected_tokens = vec![
+        let expected_tokens = [
             Token::Let,
             Token::Ident("five".to_owned()),
             Token::Assign,
