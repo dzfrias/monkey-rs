@@ -60,6 +60,7 @@ impl<'a> Lexer<'a> {
         self.skip_whitespace();
 
         let token = match self.ch {
+            // Return Token::Assign if a '=' char is found in peek
             '=' => peek_eq!(Token::Eq, Token::Assign),
             ';' => Token::Semicolon,
             '(' => Token::Lparen,
@@ -76,26 +77,24 @@ impl<'a> Lexer<'a> {
             '}' => Token::Rbrace,
             '\0' => Token::EOF,
 
-            '0'..='9' => {
-                return Token::Int(self.read_number());
+            // Return early to not call read_char another time
+            '0'..='9' => return Token::Int(self.read_number()),
+
+            _ if self.ch.is_alphabetic() || self.ch == '_' => {
+                let literal = self.read_identifier();
+                return match literal.as_str() {
+                    "fn" => Token::Function,
+                    "let" => Token::Let,
+                    "true" => Token::True,
+                    "false" => Token::False,
+                    "if" => Token::If,
+                    "else" => Token::Else,
+                    "return" => Token::Return,
+                    _ => Token::Ident(literal.to_owned()),
+                };
             }
 
-            _ => {
-                if self.ch.is_alphabetic() || self.ch == '_' {
-                    let literal = self.read_identifier();
-                    return match literal.as_str() {
-                        "fn" => Token::Function,
-                        "let" => Token::Let,
-                        "true" => Token::True,
-                        "false" => Token::False,
-                        "if" => Token::If,
-                        "else" => Token::Else,
-                        "return" => Token::Return,
-                        _ => Token::Ident(literal.to_owned()),
-                    };
-                }
-                Token::Illegal
-            }
+            _ => Token::Illegal,
         };
         self.read_char();
         token
@@ -126,6 +125,7 @@ impl<'a> Lexer<'a> {
 
     fn read_identifier(&mut self) -> String {
         let mut ident = String::new();
+        // Check if ascii digit so idents like "x1" can be tokenized properly
         while self.ch.is_alphabetic() || self.ch == '_' || self.ch.is_ascii_digit() {
             ident.push(self.ch);
             self.read_char();
