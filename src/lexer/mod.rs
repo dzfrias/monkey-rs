@@ -275,7 +275,15 @@ mod tests {
 
     #[test]
     fn next_token_recognizes_keywords() {
-        let keywords = HashMap::from([("let", Token::Let), ("fn", Token::Function)]);
+        let keywords = HashMap::from([
+            ("let", Token::Let),
+            ("fn", Token::Function),
+            ("return", Token::Return),
+            ("else", Token::Else),
+            ("if", Token::If),
+            ("true", Token::True),
+            ("false", Token::False),
+        ]);
         for (keyword, token) in keywords.iter() {
             let mut lex = Lexer::new(keyword);
             assert_eq!(*token, lex.next_token());
