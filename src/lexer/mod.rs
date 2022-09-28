@@ -1,10 +1,10 @@
 #![allow(dead_code)]
 
-use std::{iter::Peekable, str::Chars};
-
 use crate::token::Token;
+use std::iter::Peekable;
+use std::str::Chars;
 
-/// A lexer that can an input sting and turn it into a stream of Monkey
+/// A lexer that can an input string and turn it into a stream of Monkey
 /// [tokens](crate::token::Token).
 #[derive(Debug)]
 pub struct Lexer<'a> {
