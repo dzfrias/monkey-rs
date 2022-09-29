@@ -6,6 +6,20 @@ use std::str::Chars;
 
 /// A lexer that can an input string and turn it into a stream of Monkey
 /// [tokens](crate::token::Token).
+///
+/// # Examples
+/// ```
+/// use monkey_rs::lexer::Lexer;
+/// use monkey_rs::token::Token;
+///
+/// let input = "let hello_world = 30;";
+/// let mut lexer = Lexer::new(input);
+///
+/// assert_eq!(Token::Let, lexer.next_token());
+/// assert_eq!(Token::Ident("hello_world".to_owned()), lexer.next_token());
+/// assert_eq!(Token::Assign, lexer.next_token());
+/// assert_eq!(Token::Int("30".to_owned()), lexer.next_token());
+/// ```
 #[derive(Debug)]
 pub struct Lexer<'a> {
     input: Peekable<Chars<'a>>,
