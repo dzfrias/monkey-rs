@@ -19,6 +19,8 @@ use std::str::Chars;
 /// assert_eq!(Token::Ident("hello_world".to_owned()), lexer.next_token());
 /// assert_eq!(Token::Assign, lexer.next_token());
 /// assert_eq!(Token::Int("30".to_owned()), lexer.next_token());
+/// assert_eq!(Token::Semicolon, lexer.next_token());
+/// assert_eq!(Token::EOF, lexer.next_token());
 /// ```
 #[derive(Debug)]
 pub struct Lexer<'a> {
