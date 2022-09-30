@@ -1,5 +1,5 @@
 /// A token in the Monkey language.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Token {
     /// An illegal character.
     Illegal,
