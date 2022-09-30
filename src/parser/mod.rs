@@ -5,6 +5,15 @@ use crate::lexer::Lexer;
 use crate::token::Token;
 use std::fmt;
 
+#[derive(Debug, PartialEq)]
+pub struct ParserError(String);
+
+impl fmt::Display for ParserError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "parser error: {}", self.0)
+    }
+}
+
 #[derive(Debug)]
 pub struct Parser<'a> {
     lexer: &'a mut Lexer<'a>,
@@ -51,6 +60,15 @@ impl<'a> Parser<'a> {
         self.errors.as_ref()
     }
 
+    fn next_token(&mut self) {
+        self.current_tok = self.peek_tok.clone();
+        self.peek_tok = self.lexer.next_token();
+    }
+
+    fn push_error(&mut self, reason: &str) {
+        self.errors.push(ParserError(reason.to_owned()));
+    }
+
     fn parse_statement(&mut self) -> Option<Stmt> {
         match self.current_tok {
             Token::Let => self.parse_let_statement(),
@@ -84,24 +102,6 @@ impl<'a> Parser<'a> {
             ident,
             expr: Expr::Blank,
         })
-    }
-
-    fn next_token(&mut self) {
-        self.current_tok = self.peek_tok.clone();
-        self.peek_tok = self.lexer.next_token();
-    }
-
-    fn push_error(&mut self, reason: &str) {
-        self.errors.push(ParserError(reason.to_owned()));
-    }
-}
-
-#[derive(Debug, PartialEq)]
-pub struct ParserError(String);
-
-impl fmt::Display for ParserError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "parser error: {}", self.0)
     }
 }
 
