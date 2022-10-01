@@ -5,6 +5,17 @@ use crate::lexer::Lexer;
 use crate::token::Token;
 use std::fmt;
 
+#[derive(Debug)]
+enum OperatorPrec {
+    Lowest = 1,
+    Equals = 2,
+    Comparison = 3,
+    Sum = 4,
+    Product = 5,
+    Prefix = 6,
+    Call = 7,
+}
+
 #[derive(Debug, PartialEq)]
 pub struct ParserError(String);
 
@@ -73,7 +84,7 @@ impl<'a> Parser<'a> {
         match self.current_tok {
             Token::Let => self.parse_let_statement(),
             Token::Return => self.parse_return_statement(),
-            _ => None,
+            _ => self.parse_expr_stmt(),
         }
     }
 
@@ -94,7 +105,6 @@ impl<'a> Parser<'a> {
 
         // To expression token(s)
         self.next_token();
-        // TODO: Parse expressions
         while self.current_tok != Token::Semicolon {
             self.next_token();
         }
@@ -113,6 +123,74 @@ impl<'a> Parser<'a> {
         }
 
         Some(Stmt::Return { expr: Expr::Blank })
+    }
+
+    fn parse_expr_stmt(&mut self) -> Option<Stmt> {
+        let expr = self.parse_expr(OperatorPrec::Lowest);
+        // Optional semicolon
+        if self.peek_tok == Token::Semicolon {
+            self.next_token();
+        }
+        if let Some(expression) = expr {
+            Some(Stmt::Expr(expression))
+        } else {
+            None
+        }
+    }
+
+    fn parse_expr(&mut self, precendence: OperatorPrec) -> Option<Expr> {
+        match self.current_tok {
+            Token::Ident(_) => self.parse_ident(),
+            Token::Int(_) => self.parse_integer(),
+            Token::Bang | Token::Minus => self.parse_prefix_expr(),
+            _ => {
+                self.push_error(
+                    format!("No prefix operator {:?} found", self.current_tok).as_ref(),
+                );
+                None
+            }
+        }
+    }
+
+    fn parse_ident(&mut self) -> Option<Expr> {
+        if let Token::Ident(name) = &self.current_tok {
+            Some(Expr::Identifier(ast::Identifier(name.to_owned())))
+        } else {
+            None
+        }
+    }
+
+    fn parse_integer(&mut self) -> Option<Expr> {
+        if let Token::Int(int) = &self.current_tok {
+            let result = match int.parse() {
+                Ok(int) => int,
+                Err(_) => {
+                    self.push_error("Integer parsing failed");
+                    return None;
+                }
+            };
+            Some(Expr::IntegerLiteral(result))
+        } else {
+            None
+        }
+    }
+
+    fn parse_prefix_expr(&mut self) -> Option<Expr> {
+        let prefix_op = match self.current_tok {
+            Token::Minus => ast::PrefixOp::Minus,
+            Token::Bang => ast::PrefixOp::Bang,
+            _ => return None,
+        };
+        // To expression
+        self.next_token();
+        let expr = match self.parse_expr(OperatorPrec::Prefix) {
+            Some(expr) => expr,
+            None => return None,
+        };
+        Some(Expr::Prefix {
+            op: prefix_op,
+            expr: Box::new(expr),
+        })
     }
 }
 
@@ -151,30 +229,25 @@ mod tests {
 
     #[test]
     fn parser_throws_err_with_no_ident() {
-        let input = "let = 5";
+        let input = "let = 5;";
         let mut lexer = Lexer::new(input);
         let mut parser = Parser::new(&mut lexer);
-        let program = parser.parse_program();
+        parser.parse_program();
 
-        assert_eq!(
-            vec![ParserError("Expected identifier".to_owned())],
-            parser.errors
-        );
-        assert_eq!(Vec::new() as ast::Program, program);
+        assert!(parser.errors.len() > 0);
     }
 
     #[test]
     fn parser_throws_err_with_no_eq_sign() {
-        let input = "let x 5";
+        let input = "let x 5;";
         let mut lexer = Lexer::new(input);
         let mut parser = Parser::new(&mut lexer);
-        let program = parser.parse_program();
+        parser.parse_program();
 
         assert_eq!(
             vec![ParserError("Expected assignment ('=' sign)".to_owned())],
             parser.errors
         );
-        assert_eq!(Vec::new() as ast::Program, program);
     }
 
     #[test]
@@ -193,6 +266,67 @@ mod tests {
 
         for stmt in program {
             assert!(matches!(stmt, Stmt::Return { .. }));
+        }
+    }
+
+    #[test]
+    fn parse_ident_expr() {
+        let mut lexer = Lexer::new("foobar;");
+        let mut parser = Parser::new(&mut lexer);
+        let program = parser.parse_program();
+        no_parse_errs(parser);
+
+        assert_eq!(1, program.len());
+        assert_eq!(
+            vec![Stmt::Expr(Expr::Identifier(ast::Identifier(
+                "foobar".to_owned()
+            )))],
+            program
+        )
+    }
+
+    #[test]
+    fn parse_integer_literal() {
+        let mut lexer = Lexer::new("5;");
+        let mut parser = Parser::new(&mut lexer);
+        let program = parser.parse_program();
+        no_parse_errs(parser);
+
+        assert_eq!(1, program.len());
+        assert_eq!(vec![Stmt::Expr(Expr::IntegerLiteral(5))], program);
+    }
+
+    #[test]
+    fn parse_integer_errors_with_int_over_i64_limit() {
+        let mut lexer = Lexer::new("92233720368547758073290;");
+        let mut parser = Parser::new(&mut lexer);
+        parser.parse_program();
+
+        assert_eq!(
+            vec![ParserError("Integer parsing failed".to_owned())],
+            parser.errors
+        );
+    }
+
+    #[test]
+    fn parse_prefix_expr() {
+        let inputs = vec!["!5", "-15"];
+        let expected = vec![(ast::PrefixOp::Bang, 5), (ast::PrefixOp::Minus, 15)];
+
+        for (i, input) in inputs.iter().enumerate() {
+            let mut lexer = Lexer::new(input);
+            let mut parser = Parser::new(&mut lexer);
+            let program = parser.parse_program();
+            no_parse_errs(parser);
+
+            assert_eq!(1, program.len());
+            assert_eq!(
+                Stmt::Expr(Expr::Prefix {
+                    op: expected[i].0.clone(),
+                    expr: Box::new(Expr::IntegerLiteral(expected[i].1))
+                }),
+                program[0]
+            )
         }
     }
 }
