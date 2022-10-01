@@ -72,6 +72,7 @@ impl<'a> Parser<'a> {
     fn parse_statement(&mut self) -> Option<Stmt> {
         match self.current_tok {
             Token::Let => self.parse_let_statement(),
+            Token::Return => self.parse_return_statement(),
             _ => None,
         }
     }
@@ -103,6 +104,16 @@ impl<'a> Parser<'a> {
             expr: Expr::Blank,
         })
     }
+
+    fn parse_return_statement(&mut self) -> Option<Stmt> {
+        // To expression token(s)
+        self.next_token();
+        while self.current_tok != Token::Semicolon {
+            self.next_token();
+        }
+
+        Some(Stmt::Return { expr: Expr::Blank })
+    }
 }
 
 #[cfg(test)]
@@ -132,7 +143,6 @@ mod tests {
         for (i, expect_ident) in idents.iter().enumerate() {
             let stmt = &program[i];
             assert!(matches!(stmt, Stmt::Let { .. }));
-            #[allow(irrefutable_let_patterns)]
             if let Stmt::Let { ident, .. } = stmt {
                 assert_eq!(expect_ident.to_owned(), ident.0);
             }
@@ -165,5 +175,24 @@ mod tests {
             parser.errors
         );
         assert_eq!(Vec::new() as ast::Program, program);
+    }
+
+    #[test]
+    fn parse_return_statement() {
+        let input = "
+        return 5;
+        return 10;
+        return 993322;
+        ";
+        let mut lexer = Lexer::new(input);
+        let mut parser = Parser::new(&mut lexer);
+
+        let program = parser.parse_program();
+        no_parse_errs(parser);
+        assert_eq!(3, program.len());
+
+        for stmt in program {
+            assert!(matches!(stmt, Stmt::Return { .. }));
+        }
     }
 }

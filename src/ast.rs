@@ -3,6 +3,7 @@
 #[derive(Debug, PartialEq)]
 pub enum Stmt {
     Let { ident: Identifier, expr: Expr },
+    Return { expr: Expr },
 }
 
 #[derive(Debug, PartialEq)]
