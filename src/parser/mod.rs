@@ -5,15 +5,27 @@ use crate::lexer::Lexer;
 use crate::token::Token;
 use std::fmt;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, PartialOrd)]
 enum OperatorPrec {
-    Lowest = 1,
-    Equals = 2,
-    Comparison = 3,
-    Sum = 4,
-    Product = 5,
-    Prefix = 6,
-    Call = 7,
+    Lowest,
+    Equals,
+    LessGreater,
+    Sum,
+    Product,
+    Prefix,
+    Call,
+}
+
+impl OperatorPrec {
+    fn from_token(token: &Token) -> Self {
+        match token {
+            Token::Eq | Token::NotEq => OperatorPrec::Equals,
+            Token::Lt | Token::Gt => OperatorPrec::LessGreater,
+            Token::Plus | Token::Minus => OperatorPrec::Sum,
+            Token::Slash | Token::Asterisk => OperatorPrec::Product,
+            _ => OperatorPrec::Lowest,
+        }
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -80,6 +92,14 @@ impl<'a> Parser<'a> {
         self.errors.push(ParserError(reason.to_owned()));
     }
 
+    fn peek_prec(&self) -> OperatorPrec {
+        OperatorPrec::from_token(&self.peek_tok)
+    }
+
+    fn current_prec(&self) -> OperatorPrec {
+        OperatorPrec::from_token(&self.current_tok)
+    }
+
     fn parse_statement(&mut self) -> Option<Stmt> {
         match self.current_tok {
             Token::Let => self.parse_let_statement(),
@@ -118,6 +138,7 @@ impl<'a> Parser<'a> {
     fn parse_return_statement(&mut self) -> Option<Stmt> {
         // To expression token(s)
         self.next_token();
+        // TODO: Parse expression
         while self.current_tok != Token::Semicolon {
             self.next_token();
         }
@@ -139,17 +160,38 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_expr(&mut self, precendence: OperatorPrec) -> Option<Expr> {
-        match self.current_tok {
-            Token::Ident(_) => self.parse_ident(),
-            Token::Int(_) => self.parse_integer(),
-            Token::Bang | Token::Minus => self.parse_prefix_expr(),
+        let mut left_exp = match self.current_tok {
+            Token::Ident(_) => self
+                .parse_ident()
+                .expect("Should not happen if current token is Ident"),
+            Token::Int(_) => self.parse_integer()?,
+            Token::Bang | Token::Minus => self.parse_prefix_expr()?,
             _ => {
                 self.push_error(
                     format!("No prefix operator {:?} found", self.current_tok).as_ref(),
                 );
-                None
+                return None;
             }
+        };
+
+        while self.peek_tok != Token::Semicolon && precendence < self.peek_prec() {
+            if !matches!(
+                self.peek_tok,
+                Token::Plus
+                    | Token::Minus
+                    | Token::Slash
+                    | Token::Asterisk
+                    | Token::Eq
+                    | Token::NotEq
+                    | Token::Lt
+                    | Token::Gt,
+            ) {
+                return Some(left_exp);
+            }
+            self.next_token();
+            left_exp = self.parse_infix_expr(left_exp)?;
         }
+        Some(left_exp)
     }
 
     fn parse_ident(&mut self) -> Option<Expr> {
@@ -183,13 +225,31 @@ impl<'a> Parser<'a> {
         };
         // To expression
         self.next_token();
-        let expr = match self.parse_expr(OperatorPrec::Prefix) {
-            Some(expr) => expr,
-            None => return None,
-        };
+        let expr = self.parse_expr(OperatorPrec::Prefix)?;
         Some(Expr::Prefix {
             op: prefix_op,
             expr: Box::new(expr),
+        })
+    }
+
+    fn parse_infix_expr(&mut self, left: Expr) -> Option<Expr> {
+        macro_rules! translate_tokens {
+            ($($token:ident),+) => {
+                match self.current_tok {
+                    $(Token::$token => ast::InfixOp::$token,)*
+                    _ => return None,
+                }
+            };
+        }
+        let infix_op = translate_tokens!(Plus, Minus, Slash, Asterisk, Eq, NotEq, Lt, Gt);
+        let precendence = self.current_prec();
+        // To expression to the right of the operator token
+        self.next_token();
+        let right = self.parse_expr(precendence)?;
+        Some(Expr::Infix {
+            left: Box::new(left),
+            op: infix_op,
+            right: Box::new(right),
         })
     }
 }
@@ -310,10 +370,10 @@ mod tests {
 
     #[test]
     fn parse_prefix_expr() {
-        let inputs = vec!["!5", "-15"];
-        let expected = vec![(ast::PrefixOp::Bang, 5), (ast::PrefixOp::Minus, 15)];
+        let inputs = ["!5", "-15"];
+        let expected = [(ast::PrefixOp::Bang, 5), (ast::PrefixOp::Minus, 15)];
 
-        for (i, input) in inputs.iter().enumerate() {
+        for (input, expect) in inputs.iter().zip(expected) {
             let mut lexer = Lexer::new(input);
             let mut parser = Parser::new(&mut lexer);
             let program = parser.parse_program();
@@ -322,11 +382,72 @@ mod tests {
             assert_eq!(1, program.len());
             assert_eq!(
                 Stmt::Expr(Expr::Prefix {
-                    op: expected[i].0.clone(),
-                    expr: Box::new(Expr::IntegerLiteral(expected[i].1))
+                    op: expect.0.clone(),
+                    expr: Box::new(Expr::IntegerLiteral(expect.1))
                 }),
                 program[0]
             )
+        }
+    }
+
+    #[test]
+    fn parse_infix_expr() {
+        macro_rules! gen_input {
+            ($($op:expr),+) => {
+                [$(format!("5 {} 5", $op)),*]
+            };
+        }
+        macro_rules! gen_expected {
+            ($($op:ident),+) => {
+                [$((5, ast::InfixOp::$op, 5)),*]
+            };
+        }
+        let inputs = gen_input!("+", "-", "*", "/", ">", "<", "==", "!=");
+        let expected = gen_expected!(Plus, Minus, Asterisk, Slash, Gt, Lt, Eq, NotEq);
+
+        for (input, expect) in inputs.iter().zip(expected) {
+            let mut lexer = Lexer::new(input);
+            let mut parser = Parser::new(&mut lexer);
+            let program = parser.parse_program();
+            no_parse_errs(parser);
+
+            assert_eq!(1, program.len());
+            assert_eq!(
+                Stmt::Expr(Expr::Infix {
+                    left: Box::new(Expr::IntegerLiteral(expect.0)),
+                    op: expect.1,
+                    right: Box::new(Expr::IntegerLiteral(expect.2))
+                }),
+                program[0]
+            );
+        }
+    }
+
+    #[test]
+    fn parse_infix_expr_with_precendence() {
+        let inputs = [
+            "-a * b",
+            "5 < 4 == 3 > 4",
+            "a * b / c",
+            "!-a",
+            "3 + 4 * 5 == 3 * 1 + 4 * 5",
+        ];
+        let expected = [
+            "((-a) * b);",
+            "((5 < 4) == (3 > 4));",
+            "((a * b) / c);",
+            "(!(-a));",
+            "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)));",
+        ];
+
+        for (input, expect) in inputs.iter().zip(expected) {
+            let mut lexer = Lexer::new(input);
+            let mut parser = Parser::new(&mut lexer);
+            let program = parser.parse_program();
+            no_parse_errs(parser);
+            assert_eq!(1, program.len());
+
+            assert_eq!(expect, program[0].to_string());
         }
     }
 }

@@ -23,7 +23,15 @@ pub enum Expr {
     Blank,
     Identifier(Identifier),
     IntegerLiteral(i64),
-    Prefix { op: PrefixOp, expr: Box<Expr> },
+    Prefix {
+        op: PrefixOp,
+        expr: Box<Expr>,
+    },
+    Infix {
+        left: Box<Expr>,
+        op: InfixOp,
+        right: Box<Expr>,
+    },
 }
 
 impl fmt::Display for Expr {
@@ -32,7 +40,8 @@ impl fmt::Display for Expr {
             Expr::Blank => write!(f, "BLANK"),
             Expr::Identifier(Identifier(name)) => write!(f, "{name}"),
             Expr::IntegerLiteral(int) => write!(f, "{int}"),
-            Expr::Prefix { op, expr } => write!(f, "{op}{expr}"),
+            Expr::Prefix { op, expr } => write!(f, "({op}{expr})"),
+            Expr::Infix { left, op, right } => write!(f, "({left} {op} {right})"),
         }
     }
 }
@@ -48,6 +57,33 @@ impl fmt::Display for PrefixOp {
         match self {
             PrefixOp::Minus => write!(f, "-"),
             PrefixOp::Bang => write!(f, "!"),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub enum InfixOp {
+    Plus,
+    Minus,
+    Asterisk,
+    Slash,
+    Gt,
+    Lt,
+    Eq,
+    NotEq,
+}
+
+impl fmt::Display for InfixOp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            InfixOp::Plus => write!(f, "+"),
+            InfixOp::Minus => write!(f, "-"),
+            InfixOp::Asterisk => write!(f, "*"),
+            InfixOp::Slash => write!(f, "/"),
+            InfixOp::Gt => write!(f, ">"),
+            InfixOp::Lt => write!(f, "<"),
+            InfixOp::Eq => write!(f, "=="),
+            InfixOp::NotEq => write!(f, "!="),
         }
     }
 }
