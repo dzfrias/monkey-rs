@@ -456,7 +456,7 @@ mod tests {
 
     #[test]
     fn parse_bool_literal() {
-        let inputs = ["true", "false", "3 == true"];
+        let inputs = ["true", "false", "3 == true", "!true"];
         let expected = [
             Expr::BooleanLiteral(true),
             Expr::BooleanLiteral(false),
@@ -464,6 +464,10 @@ mod tests {
                 left: Box::new(Expr::IntegerLiteral(3)),
                 op: ast::InfixOp::Eq,
                 right: Box::new(Expr::BooleanLiteral(true)),
+            },
+            Expr::Prefix {
+                op: ast::PrefixOp::Bang,
+                expr: Box::new(Expr::BooleanLiteral(true)),
             },
         ];
 
