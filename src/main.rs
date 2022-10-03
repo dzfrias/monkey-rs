@@ -1,5 +1,5 @@
 use monkey_rs::lexer::Lexer;
-use monkey_rs::token::Token;
+use monkey_rs::parser::Parser;
 use std::io::{self, Write};
 use std::process;
 
@@ -28,12 +28,14 @@ fn start_repl() {
             });
 
         let mut lexer = Lexer::new(&repl_input);
-        loop {
-            let token = lexer.next_token();
-            if let Token::EOF = token {
-                break;
-            }
-            println!("{:?}", token);
+        let mut parser = Parser::new(&mut lexer);
+        let program = parser.parse_program();
+        let errs = parser.errors();
+        for parser_err in errs {
+            println!("{parser_err}");
+        }
+        if errs.len() == 0 {
+            println!("{:?}", program);
         }
     }
 }
