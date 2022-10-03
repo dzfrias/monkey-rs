@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use crate::ast::{self, Expr, Stmt};
 use crate::lexer::Lexer;
 use crate::token::Token;
@@ -13,6 +11,7 @@ enum OperatorPrec {
     Sum,
     Product,
     Prefix,
+    #[allow(dead_code)]
     Call,
 }
 
@@ -64,15 +63,10 @@ impl<'a> Parser<'a> {
     pub fn parse_program(&mut self) -> ast::Program {
         let mut program: ast::Program = Vec::new();
 
-        loop {
-            if self.current_tok == Token::EOF {
-                break;
-            }
-
+        while self.current_tok != Token::EOF {
             if let Some(stmt) = self.parse_statement() {
                 program.push(stmt);
             }
-
             self.next_token();
         }
 
@@ -278,8 +272,7 @@ mod tests {
         assert_eq!(3, program.len());
 
         let idents = ["x", "y", "foobar"];
-        for (i, expect_ident) in idents.iter().enumerate() {
-            let stmt = &program[i];
+        for (stmt, expect_ident) in program.iter().zip(idents) {
             assert!(matches!(stmt, Stmt::Let { .. }));
             if let Stmt::Let { ident, .. } = stmt {
                 assert_eq!(expect_ident.to_owned(), ident.0);
