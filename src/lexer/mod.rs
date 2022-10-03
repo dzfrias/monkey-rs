@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use crate::token::Token;
 use std::iter::Peekable;
 use std::str::Chars;
@@ -63,12 +61,12 @@ impl<'a> Lexer<'a> {
     /// ```
     pub fn next_token(&mut self) -> Token {
         macro_rules! peek_eq {
-            ($tok:expr, $else_tok:expr) => {
+            ($tok:ident, $else_tok:ident) => {
                 if self.peek_char() == '=' {
                     self.read_char();
-                    $tok
+                    Token::$tok
                 } else {
-                    $else_tok
+                    Token::$else_tok
                 }
             };
         }
@@ -77,14 +75,14 @@ impl<'a> Lexer<'a> {
 
         let token = match self.ch {
             // Return Token::Assign if a '=' char is found in peek
-            '=' => peek_eq!(Token::Eq, Token::Assign),
+            '=' => peek_eq!(Eq, Assign),
             ';' => Token::Semicolon,
             '(' => Token::Lparen,
             ')' => Token::Rparen,
             ',' => Token::Comma,
             '+' => Token::Plus,
             '-' => Token::Minus,
-            '!' => peek_eq!(Token::NotEq, Token::Bang),
+            '!' => peek_eq!(NotEq, Bang),
             '/' => Token::Slash,
             '*' => Token::Asterisk,
             '<' => Token::Lt,
