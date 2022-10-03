@@ -23,6 +23,7 @@ pub enum Expr {
     Blank,
     Identifier(Identifier),
     IntegerLiteral(i64),
+    BooleanLiteral(bool),
     Prefix {
         op: PrefixOp,
         expr: Box<Expr>,
@@ -40,6 +41,7 @@ impl fmt::Display for Expr {
             Expr::Blank => write!(f, "BLANK"),
             Expr::Identifier(Identifier(name)) => write!(f, "{name}"),
             Expr::IntegerLiteral(int) => write!(f, "{int}"),
+            Expr::BooleanLiteral(b) => write!(f, "{b}"),
             Expr::Prefix { op, expr } => write!(f, "({op}{expr})"),
             Expr::Infix { left, op, right } => write!(f, "({left} {op} {right})"),
         }

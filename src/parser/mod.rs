@@ -159,6 +159,7 @@ impl<'a> Parser<'a> {
                 .parse_ident()
                 .expect("Should not happen if current token is Ident"),
             Token::Int(_) => self.parse_integer()?,
+            Token::True | Token::False => self.parse_bool()?,
             Token::Bang | Token::Minus => self.parse_prefix_expr()?,
             _ => {
                 self.push_error(
@@ -208,6 +209,15 @@ impl<'a> Parser<'a> {
             Some(Expr::IntegerLiteral(result))
         } else {
             None
+        }
+    }
+
+    fn parse_bool(&mut self) -> Option<Expr> {
+        match self.current_tok {
+            Token::True | Token::False => {
+                Some(Expr::BooleanLiteral(self.current_tok == Token::True))
+            }
+            _ => None,
         }
     }
 
@@ -441,6 +451,29 @@ mod tests {
             assert_eq!(1, program.len());
 
             assert_eq!(expect, program[0].to_string());
+        }
+    }
+
+    #[test]
+    fn parse_bool_literal() {
+        let inputs = ["true", "false", "3 == true"];
+        let expected = [
+            Expr::BooleanLiteral(true),
+            Expr::BooleanLiteral(false),
+            Expr::Infix {
+                left: Box::new(Expr::IntegerLiteral(3)),
+                op: ast::InfixOp::Eq,
+                right: Box::new(Expr::BooleanLiteral(true)),
+            },
+        ];
+
+        for (input, expect) in inputs.iter().zip(expected) {
+            let mut lexer = Lexer::new(input);
+            let mut parser = Parser::new(&mut lexer);
+            let program = parser.parse_program();
+            no_parse_errs(parser);
+            assert_eq!(1, program.len());
+            assert_eq!(Stmt::Expr(expect), program[0]);
         }
     }
 }
