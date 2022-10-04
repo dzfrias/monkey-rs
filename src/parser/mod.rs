@@ -159,8 +159,11 @@ impl<'a> Parser<'a> {
                 .parse_ident()
                 .expect("Should not happen if current token is Ident"),
             Token::Int(_) => self.parse_integer()?,
-            Token::True | Token::False => self.parse_bool()?,
+            Token::True | Token::False => self
+                .parse_bool()
+                .expect("Should not happen if current token is True or False"),
             Token::Bang | Token::Minus => self.parse_prefix_expr()?,
+            Token::Lparen => self.parse_grouped_expr()?,
             _ => {
                 self.push_error(
                     format!("No prefix operator {:?} found", self.current_tok).as_ref(),
@@ -221,6 +224,17 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn parse_grouped_expr(&mut self) -> Option<Expr> {
+        self.next_token();
+        let expr = self.parse_expr(OperatorPrec::Lowest);
+        if self.peek_tok != Token::Rparen {
+            self.push_error("Expected rparen to close grouped expr");
+            return None;
+        }
+        self.next_token();
+        expr
+    }
+
     fn parse_prefix_expr(&mut self) -> Option<Expr> {
         let prefix_op = match self.current_tok {
             Token::Minus => ast::PrefixOp::Minus,
@@ -266,6 +280,10 @@ mod tests {
         assert_eq!(Vec::<ParserError>::new(), parser.errors);
     }
 
+    fn errs_contain(parser: &Parser, err_msg: &str) {
+        assert!(parser.errors.contains(&ParserError(err_msg.to_owned())));
+    }
+
     #[test]
     fn parser_parses_let_stmt() {
         let input = "
@@ -298,6 +316,7 @@ mod tests {
         parser.parse_program();
 
         assert!(parser.errors.len() > 0);
+        errs_contain(&parser, "Expected identifier");
     }
 
     #[test]
@@ -307,10 +326,7 @@ mod tests {
         let mut parser = Parser::new(&mut lexer);
         parser.parse_program();
 
-        assert_eq!(
-            vec![ParserError("Expected assignment ('=' sign)".to_owned())],
-            parser.errors
-        );
+        errs_contain(&parser, "Expected assignment ('=' sign)");
     }
 
     #[test]
@@ -365,10 +381,7 @@ mod tests {
         let mut parser = Parser::new(&mut lexer);
         parser.parse_program();
 
-        assert_eq!(
-            vec![ParserError("Integer parsing failed".to_owned())],
-            parser.errors
-        );
+        errs_contain(&parser, "Integer parsing failed");
     }
 
     #[test]
@@ -479,5 +492,29 @@ mod tests {
             assert_eq!(1, program.len());
             assert_eq!(Stmt::Expr(expect), program[0]);
         }
+    }
+
+    #[test]
+    fn parse_grouped_expr() {
+        let inputs = ["1 + (2 + 3) + 4", "(5 + 5) * 2", "-(5 + 5)"];
+        let expected = ["((1 + (2 + 3)) + 4);", "((5 + 5) * 2);", "(-(5 + 5));"];
+
+        for (input, expect) in inputs.iter().zip(expected) {
+            let mut lexer = Lexer::new(input);
+            let mut parser = Parser::new(&mut lexer);
+            let program = parser.parse_program();
+            no_parse_errs(parser);
+            assert_eq!(1, program.len());
+            assert_eq!(expect, program[0].to_string());
+        }
+    }
+
+    #[test]
+    fn parse_grouped_expr_needs_closed_paren() {
+        let input = "1 + (4 + 5";
+        let mut lexer = Lexer::new(input);
+        let mut parser = Parser::new(&mut lexer);
+        parser.parse_program();
+        errs_contain(&parser, "Expected rparen to close grouped expr");
     }
 }
