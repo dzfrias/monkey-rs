@@ -4,7 +4,7 @@ use crate::token::Token;
 use std::fmt;
 
 #[derive(Debug, PartialEq, PartialOrd)]
-enum OperatorPrec {
+enum Precendence {
     Lowest,
     Equals,
     LessGreater,
@@ -15,14 +15,14 @@ enum OperatorPrec {
     Call,
 }
 
-impl OperatorPrec {
+impl Precendence {
     fn from_token(token: &Token) -> Self {
         match token {
-            Token::Eq | Token::NotEq => OperatorPrec::Equals,
-            Token::Lt | Token::Gt => OperatorPrec::LessGreater,
-            Token::Plus | Token::Minus => OperatorPrec::Sum,
-            Token::Slash | Token::Asterisk => OperatorPrec::Product,
-            _ => OperatorPrec::Lowest,
+            Token::Eq | Token::NotEq => Precendence::Equals,
+            Token::Lt | Token::Gt => Precendence::LessGreater,
+            Token::Plus | Token::Minus => Precendence::Sum,
+            Token::Slash | Token::Asterisk => Precendence::Product,
+            _ => Precendence::Lowest,
         }
     }
 }
@@ -132,12 +132,12 @@ impl<'a> Parser<'a> {
         self.errors.push(ParserError(reason.to_owned()));
     }
 
-    fn peek_prec(&self) -> OperatorPrec {
-        OperatorPrec::from_token(&self.peek_tok)
+    fn peek_prec(&self) -> Precendence {
+        Precendence::from_token(&self.peek_tok)
     }
 
-    fn current_prec(&self) -> OperatorPrec {
-        OperatorPrec::from_token(&self.current_tok)
+    fn current_prec(&self) -> Precendence {
+        Precendence::from_token(&self.current_tok)
     }
 
     fn parse_statement(&mut self) -> Option<Stmt> {
@@ -187,7 +187,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_expr_stmt(&mut self) -> Option<Stmt> {
-        let expr = self.parse_expr(OperatorPrec::Lowest);
+        let expr = self.parse_expr(Precendence::Lowest);
         // Optional semicolon
         if self.peek_tok == Token::Semicolon {
             self.next_token();
@@ -199,7 +199,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_expr(&mut self, precendence: OperatorPrec) -> Option<Expr> {
+    fn parse_expr(&mut self, precendence: Precendence) -> Option<Expr> {
         let mut left_exp = match self.current_tok {
             Token::Ident(_) => self
                 .parse_ident()
@@ -272,7 +272,7 @@ impl<'a> Parser<'a> {
 
     fn parse_grouped_expr(&mut self) -> Option<Expr> {
         self.next_token();
-        let expr = self.parse_expr(OperatorPrec::Lowest);
+        let expr = self.parse_expr(Precendence::Lowest);
         if self.peek_tok != Token::Rparen {
             self.push_error("Expected rparen to close grouped expr");
             return None;
@@ -289,7 +289,7 @@ impl<'a> Parser<'a> {
         };
         // To expression
         self.next_token();
-        let expr = self.parse_expr(OperatorPrec::Prefix)?;
+        let expr = self.parse_expr(Precendence::Prefix)?;
         Some(Expr::Prefix {
             op: prefix_op,
             expr: Box::new(expr),
