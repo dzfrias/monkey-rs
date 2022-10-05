@@ -46,6 +46,16 @@ pub struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
+    /// Creates a new `Parser` with the first tokens read in.
+    /// # Examples
+    /// ```
+    /// use monkey_rs::parser::Parser;
+    /// use monkey_rs::lexer::Lexer;
+    ///
+    /// let input = "let x = 4;";
+    /// let mut lexer = Lexer::new(input);
+    /// let mut parser = Parser::new(&mut lexer);
+    /// ```
     pub fn new(lexer: &'a mut Lexer<'a>) -> Self {
         let mut parser = Self {
             lexer,
@@ -60,6 +70,29 @@ impl<'a> Parser<'a> {
         parser
     }
 
+    /// Parses the targeted program and into an [ast::Program](crate::ast::Program). This  will be
+    /// a vector of [statements](crate::ast::Stmt).
+    ///
+    /// # Examples
+    /// ```
+    /// use monkey_rs::parser::Parser;
+    /// use monkey_rs::lexer::Lexer;
+    /// use monkey_rs::ast;
+    ///
+    /// let input = "2 + 3";
+    /// let mut lexer = Lexer::new(input);
+    /// let mut parser = Parser::new(&mut lexer);
+    /// let program = parser.parse_program();
+    /// assert_eq!(1, program.len());
+    /// assert_eq!(
+    ///     ast::Stmt::Expr(ast::Expr::Infix {
+    ///         left: Box::new(ast::Expr::IntegerLiteral(2)),
+    ///         op: ast::InfixOp::Plus,
+    ///         right: Box::new(ast::Expr::IntegerLiteral(3)),
+    ///     }),
+    ///     program[0]
+    /// );
+    /// ```
     pub fn parse_program(&mut self) -> ast::Program {
         let mut program: ast::Program = Vec::new();
 
@@ -73,6 +106,19 @@ impl<'a> Parser<'a> {
         program
     }
 
+    /// Gets the [errors](crate::parser::ParserError) that the parser ran into after parsing.
+    /// # Examples
+    /// ```
+    /// use monkey_rs::parser::Parser;
+    /// use monkey_rs::lexer::Lexer;
+    /// use monkey_rs::ast;
+    ///
+    /// let input = "(2 + 3";
+    /// let mut lexer = Lexer::new(input);
+    /// let mut parser = Parser::new(&mut lexer);
+    /// parser.parse_program();
+    /// assert!(parser.errors().len() > 0);
+    /// ```
     pub fn errors(&self) -> &[ParserError] {
         self.errors.as_ref()
     }
