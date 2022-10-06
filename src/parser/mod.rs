@@ -129,9 +129,9 @@ impl<'a> Parser<'a> {
         self
     }
 
-    fn expect_peek(&mut self, token: Token, msg: &str) -> Option<&mut Self> {
+    fn expect_peek(&mut self, token: Token) -> Option<&mut Self> {
         if self.peek_tok != token {
-            self.push_error(msg);
+            self.push_error(format!("Expected {:?}", token).as_str());
             None
         } else {
             self.next_token();
@@ -167,8 +167,7 @@ impl<'a> Parser<'a> {
             return None;
         };
         // To Ident token
-        self.next_token()
-            .expect_peek(Token::Assign, "Expected assignment ('=' sign)")?;
+        self.next_token().expect_peek(Token::Assign)?;
         while self.current_tok != Token::Semicolon {
             self.next_token();
         }
@@ -275,7 +274,7 @@ impl<'a> Parser<'a> {
             return None;
         }
         let expr = self.next_token().parse_expr(Precendence::Lowest)?;
-        self.expect_peek(Token::Rparen, "Expected rparen to close grouped expr")?;
+        self.expect_peek(Token::Rparen)?;
         Some(expr)
     }
 
@@ -313,26 +312,37 @@ impl<'a> Parser<'a> {
 
     fn parse_if_expr(&mut self) -> Option<Expr> {
         let condition = self
-            .expect_peek(
-                Token::Lparen,
-                "Expeced lparen in if expression in if expression condition",
-            )?
+            .expect_peek(Token::Lparen)?
             .next_token() // To expresion
             .parse_expr(Precendence::Lowest)?;
         let consequence = self
-            .expect_peek(Token::Rparen, "Expected rparen in if expression condition")?
-            .expect_peek(Token::Lbrace, "Expected lbrace for if expression block")?
+            .expect_peek(Token::Rparen)?
+            .expect_peek(Token::Lbrace)?
             .parse_block_stmt();
+        let mut alternative = Vec::new() as ast::Block;
+        if self.peek_tok == Token::Else {
+            self.next_token().expect_peek(Token::Lbrace)?;
+            alternative = self.parse_block_stmt();
+        }
 
         return Some(Expr::If {
             condition: Box::new(condition),
             consequence,
-            alternative: Vec::new() as ast::Program,
+            alternative,
         });
     }
 
     fn parse_block_stmt(&mut self) -> ast::Block {
-        todo!()
+        let mut statements = Vec::new() as ast::Block;
+        self.next_token();
+        while self.current_tok != Token::Rbrace && self.current_tok != Token::EOF {
+            let stmt = self.parse_statement();
+            if let Some(stmt) = stmt {
+                statements.push(stmt);
+            }
+            self.next_token();
+        }
+        statements
     }
 }
 
@@ -390,7 +400,7 @@ mod tests {
         let mut parser = Parser::new(&mut lexer);
         parser.parse_program();
 
-        errs_contain(&parser, "Expected assignment ('=' sign)");
+        errs_contain(&parser, "Expected Assign");
     }
 
     #[test]
@@ -579,6 +589,50 @@ mod tests {
         let mut lexer = Lexer::new(input);
         let mut parser = Parser::new(&mut lexer);
         parser.parse_program();
-        errs_contain(&parser, "Expected rparen to close grouped expr");
+        errs_contain(&parser, "Expected Rparen");
+    }
+
+    #[test]
+    fn parse_if_expr() {
+        let inputs = ["if (x < y) { x }", "if (x < y) { x } else { y }"];
+        let expected_alts = [
+            Vec::new() as ast::Block,
+            vec![Stmt::Expr(Expr::Identifier(ast::Identifier(
+                "y".to_owned(),
+            )))],
+        ];
+
+        for (input, alt) in inputs.iter().zip(expected_alts) {
+            let mut lexer = Lexer::new(input);
+            let mut parser = Parser::new(&mut lexer);
+            let program = parser.parse_program();
+            no_parse_errs(parser);
+
+            assert_eq!(1, program.len());
+            match &program[0] {
+                Stmt::Expr(Expr::If {
+                    condition,
+                    consequence,
+                    alternative,
+                }) => {
+                    assert_eq!(
+                        &Box::new(Expr::Infix {
+                            left: Box::new(Expr::Identifier(ast::Identifier("x".to_owned()))),
+                            op: ast::InfixOp::Lt,
+                            right: Box::new(Expr::Identifier(ast::Identifier("y".to_owned())))
+                        }),
+                        condition,
+                    );
+                    assert_eq!(
+                        &vec![Stmt::Expr(Expr::Identifier(ast::Identifier(
+                            "x".to_owned()
+                        )))],
+                        consequence
+                    );
+                    assert_eq!(&alt, alternative);
+                }
+                _ => panic!("Did not parse an if expression"),
+            }
+        }
     }
 }
