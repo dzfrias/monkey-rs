@@ -123,9 +123,20 @@ impl<'a> Parser<'a> {
         self.errors.as_ref()
     }
 
-    fn next_token(&mut self) {
+    fn next_token(&mut self) -> &mut Self {
         self.current_tok = self.peek_tok.clone();
         self.peek_tok = self.lexer.next_token();
+        self
+    }
+
+    fn expect_peek(&mut self, token: Token, msg: &str) -> Option<&mut Self> {
+        if self.peek_tok != token {
+            self.push_error(msg);
+            None
+        } else {
+            self.next_token();
+            Some(self)
+        }
     }
 
     fn push_error(&mut self, reason: &str) {
@@ -156,15 +167,8 @@ impl<'a> Parser<'a> {
             return None;
         };
         // To Ident token
-        self.next_token();
-
-        if self.peek_tok != Token::Assign {
-            self.push_error("Expected assignment ('=' sign)");
-            return None;
-        }
-
-        // To expression token(s)
-        self.next_token();
+        self.next_token()
+            .expect_peek(Token::Assign, "Expected assignment ('=' sign)")?;
         while self.current_tok != Token::Semicolon {
             self.next_token();
         }
@@ -187,16 +191,12 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_expr_stmt(&mut self) -> Option<Stmt> {
-        let expr = self.parse_expr(Precendence::Lowest);
+        let expr = self.parse_expr(Precendence::Lowest)?;
         // Optional semicolon
         if self.peek_tok == Token::Semicolon {
             self.next_token();
         }
-        if let Some(expression) = expr {
-            Some(Stmt::Expr(expression))
-        } else {
-            None
-        }
+        Some(Stmt::Expr(expr))
     }
 
     fn parse_expr(&mut self, precendence: Precendence) -> Option<Expr> {
@@ -210,6 +210,7 @@ impl<'a> Parser<'a> {
                 .expect("Should not happen if current token is True or False"),
             Token::Bang | Token::Minus => self.parse_prefix_expr()?,
             Token::Lparen => self.parse_grouped_expr()?,
+            Token::If => self.parse_if_expr()?,
             _ => {
                 self.push_error(
                     format!("No prefix operator {:?} found", self.current_tok).as_ref(),
@@ -232,8 +233,7 @@ impl<'a> Parser<'a> {
             ) {
                 return Some(left_exp);
             }
-            self.next_token();
-            left_exp = self.parse_infix_expr(left_exp)?;
+            left_exp = self.next_token().parse_infix_expr(left_exp)?;
         }
         Some(left_exp)
     }
@@ -271,14 +271,12 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_grouped_expr(&mut self) -> Option<Expr> {
-        self.next_token();
-        let expr = self.parse_expr(Precendence::Lowest);
-        if self.peek_tok != Token::Rparen {
-            self.push_error("Expected rparen to close grouped expr");
+        if self.current_tok != Token::Lparen {
             return None;
         }
-        self.next_token();
-        expr
+        let expr = self.next_token().parse_expr(Precendence::Lowest)?;
+        self.expect_peek(Token::Rparen, "Expected rparen to close grouped expr")?;
+        Some(expr)
     }
 
     fn parse_prefix_expr(&mut self) -> Option<Expr> {
@@ -287,9 +285,7 @@ impl<'a> Parser<'a> {
             Token::Bang => ast::PrefixOp::Bang,
             _ => return None,
         };
-        // To expression
-        self.next_token();
-        let expr = self.parse_expr(Precendence::Prefix)?;
+        let expr = self.next_token().parse_expr(Precendence::Prefix)?;
         Some(Expr::Prefix {
             op: prefix_op,
             expr: Box::new(expr),
@@ -307,14 +303,36 @@ impl<'a> Parser<'a> {
         }
         let infix_op = translate_tokens!(Plus, Minus, Slash, Asterisk, Eq, NotEq, Lt, Gt);
         let precendence = self.current_prec();
-        // To expression to the right of the operator token
-        self.next_token();
-        let right = self.parse_expr(precendence)?;
+        let right = self.next_token().parse_expr(precendence)?;
         Some(Expr::Infix {
             left: Box::new(left),
             op: infix_op,
             right: Box::new(right),
         })
+    }
+
+    fn parse_if_expr(&mut self) -> Option<Expr> {
+        let condition = self
+            .expect_peek(
+                Token::Lparen,
+                "Expeced lparen in if expression in if expression condition",
+            )?
+            .next_token() // To expresion
+            .parse_expr(Precendence::Lowest)?;
+        let consequence = self
+            .expect_peek(Token::Rparen, "Expected rparen in if expression condition")?
+            .expect_peek(Token::Lbrace, "Expected lbrace for if expression block")?
+            .parse_block_stmt();
+
+        return Some(Expr::If {
+            condition: Box::new(condition),
+            consequence,
+            alternative: Vec::new() as ast::Program,
+        });
+    }
+
+    fn parse_block_stmt(&mut self) -> ast::Block {
+        todo!()
     }
 }
 

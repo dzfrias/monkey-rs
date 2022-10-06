@@ -33,6 +33,11 @@ pub enum Expr {
         op: InfixOp,
         right: Box<Expr>,
     },
+    If {
+        condition: Box<Expr>,
+        consequence: Block,
+        alternative: Block,
+    },
 }
 
 impl fmt::Display for Expr {
@@ -44,6 +49,8 @@ impl fmt::Display for Expr {
             Expr::BooleanLiteral(b) => write!(f, "{b}"),
             Expr::Prefix { op, expr } => write!(f, "({op}{expr})"),
             Expr::Infix { left, op, right } => write!(f, "({left} {op} {right})"),
+            // TODO: Print out if expr
+            Expr::If { .. } => todo!(),
         }
     }
 }
