@@ -11,7 +11,6 @@ enum Precendence {
     Sum,
     Product,
     Prefix,
-    #[allow(dead_code)]
     Call,
 }
 
@@ -22,6 +21,7 @@ impl Precendence {
             Token::Lt | Token::Gt => Precendence::LessGreater,
             Token::Plus | Token::Minus => Precendence::Sum,
             Token::Slash | Token::Asterisk => Precendence::Product,
+            Token::Lparen => Precendence::Call,
             _ => Precendence::Lowest,
         }
     }
@@ -201,7 +201,7 @@ impl<'a> Parser<'a> {
     fn parse_expr(&mut self, precendence: Precendence) -> Option<Expr> {
         let mut left_exp = match self.current_tok {
             Token::Ident(_) => self
-                .parse_ident()
+                .parse_ident_expr()
                 .expect("Should not happen if current token is Ident"),
             Token::Int(_) => self.parse_integer()?,
             Token::True | Token::False => self
@@ -210,6 +210,7 @@ impl<'a> Parser<'a> {
             Token::Bang | Token::Minus => self.parse_prefix_expr()?,
             Token::Lparen => self.parse_grouped_expr()?,
             Token::If => self.parse_if_expr()?,
+            Token::Function => self.parse_function_expr()?,
             _ => {
                 self.push_error(
                     format!("No prefix operator {:?} found", self.current_tok).as_ref(),
@@ -219,30 +220,32 @@ impl<'a> Parser<'a> {
         };
 
         while self.peek_tok != Token::Semicolon && precendence < self.peek_prec() {
-            if !matches!(
-                self.peek_tok,
+            left_exp = match self.peek_tok {
                 Token::Plus
-                    | Token::Minus
-                    | Token::Slash
-                    | Token::Asterisk
-                    | Token::Eq
-                    | Token::NotEq
-                    | Token::Lt
-                    | Token::Gt,
-            ) {
-                return Some(left_exp);
-            }
-            left_exp = self.next_token().parse_infix_expr(left_exp)?;
+                | Token::Minus
+                | Token::Slash
+                | Token::Asterisk
+                | Token::Eq
+                | Token::NotEq
+                | Token::Lt
+                | Token::Gt => self.next_token().parse_infix_expr(left_exp)?,
+                Token::Lparen => self.next_token().parse_call_expr(left_exp)?,
+                _ => return Some(left_exp),
+            };
         }
         Some(left_exp)
     }
 
-    fn parse_ident(&mut self) -> Option<Expr> {
+    fn parse_ident(&mut self) -> Option<ast::Identifier> {
         if let Token::Ident(name) = &self.current_tok {
-            Some(Expr::Identifier(ast::Identifier(name.to_owned())))
+            Some(ast::Identifier(name.to_owned()))
         } else {
             None
         }
+    }
+
+    fn parse_ident_expr(&mut self) -> Option<Expr> {
+        Some(Expr::Identifier(self.parse_ident()?))
     }
 
     fn parse_integer(&mut self) -> Option<Expr> {
@@ -343,6 +346,65 @@ impl<'a> Parser<'a> {
             self.next_token();
         }
         statements
+    }
+
+    fn parse_function_expr(&mut self) -> Option<Expr> {
+        let params = self.expect_peek(Token::Lparen)?.parse_function_params()?;
+        let body = self.expect_peek(Token::Lbrace)?.parse_block_stmt();
+        Some(Expr::Function { params, body })
+    }
+
+    fn parse_function_params(&mut self) -> Option<Vec<ast::Identifier>> {
+        let mut idents = Vec::new();
+        if self.peek_tok == Token::Rparen {
+            self.next_token();
+            return Some(idents);
+        }
+        let ident = match self.next_token().parse_ident() {
+            Some(id) => id,
+            None => {
+                self.push_error("Expected Ident in function params");
+                return None;
+            }
+        };
+        idents.push(ident);
+
+        while self.peek_tok == Token::Comma {
+            let ident = match self.next_token().next_token().parse_ident() {
+                Some(id) => id,
+                None => {
+                    self.push_error("Expected Ident in function params");
+                    return None;
+                }
+            };
+            idents.push(ident);
+        }
+
+        self.expect_peek(Token::Rparen);
+
+        Some(idents)
+    }
+
+    fn parse_call_expr(&mut self, function: Expr) -> Option<Expr> {
+        let args: Vec<Expr> = if self.peek_tok == Token::Rparen {
+            self.next_token();
+            Vec::new()
+        } else {
+            let mut args = Vec::new();
+            self.next_token();
+            args.push(self.parse_expr(Precendence::Lowest)?);
+            while self.peek_tok == Token::Comma {
+                self.next_token().next_token();
+                args.push(self.parse_expr(Precendence::Lowest)?);
+            }
+            self.expect_peek(Token::Rparen)?;
+            args
+        };
+
+        Some(Expr::Call {
+            func: Box::new(function),
+            args,
+        })
     }
 }
 
@@ -632,6 +694,38 @@ mod tests {
                     assert_eq!(&alt, alternative);
                 }
                 _ => panic!("Did not parse an if expression"),
+            }
+        }
+    }
+
+    #[test]
+    fn parse_func_expr() {
+        let inputs = ["fn(x, y) { x + y; }", "fn() { x + y; }"];
+        let expected_params = [vec!["x", "y"], Vec::new()];
+
+        for (input, expected) in inputs.iter().zip(expected_params) {
+            let mut lexer = Lexer::new(input);
+            let mut parser = Parser::new(&mut lexer);
+            let program = parser.parse_program();
+            no_parse_errs(parser);
+
+            assert_eq!(1, program.len());
+            if let Stmt::Expr(Expr::Function { params, body }) = &program[0] {
+                let expect_params: Vec<ast::Identifier> = expected
+                    .iter()
+                    .map(|x| ast::Identifier(x.to_owned().to_owned()))
+                    .collect();
+                assert_eq!(&expect_params, params);
+                assert_eq!(
+                    &vec![Stmt::Expr(Expr::Infix {
+                        left: Box::new(Expr::Identifier(ast::Identifier("x".to_owned()))),
+                        op: ast::InfixOp::Plus,
+                        right: Box::new(Expr::Identifier(ast::Identifier("y".to_owned())))
+                    })],
+                    body
+                )
+            } else {
+                panic!("Did not parse function expression");
             }
         }
     }

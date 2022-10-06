@@ -38,6 +38,14 @@ pub enum Expr {
         consequence: Block,
         alternative: Block,
     },
+    Function {
+        params: Vec<Identifier>,
+        body: Block,
+    },
+    Call {
+        func: Box<Expr>,
+        args: Vec<Expr>,
+    },
 }
 
 impl fmt::Display for Expr {
@@ -49,8 +57,17 @@ impl fmt::Display for Expr {
             Expr::BooleanLiteral(b) => write!(f, "{b}"),
             Expr::Prefix { op, expr } => write!(f, "({op}{expr})"),
             Expr::Infix { left, op, right } => write!(f, "({left} {op} {right})"),
-            // TODO: Print out if expr
+            // TODO: Print out if and function expr
             Expr::If { .. } => todo!(),
+            Expr::Function { .. } => todo!(),
+            Expr::Call { func, args } => {
+                let mut joined = String::new();
+                for expr in args {
+                    joined.push_str(expr.to_string().as_str());
+                    joined.push_str("; ");
+                }
+                write!(f, "{func}({joined})")
+            }
         }
     }
 }
