@@ -729,4 +729,58 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn parse_call_expr() {
+        let input = "add(1, 2 * 3)";
+        let mut lexer = Lexer::new(input);
+        let mut parser = Parser::new(&mut lexer);
+        let program = parser.parse_program();
+        no_parse_errs(parser);
+
+        assert_eq!(1, program.len());
+        if let Stmt::Expr(Expr::Call { func, args }) = &program[0] {
+            assert_eq!(
+                &Box::new(Expr::Identifier(ast::Identifier("add".to_owned()))),
+                func
+            );
+            assert_eq!(
+                &vec![
+                    Expr::IntegerLiteral(1),
+                    Expr::Infix {
+                        left: Box::new(Expr::IntegerLiteral(2)),
+                        op: ast::InfixOp::Asterisk,
+                        right: Box::new(Expr::IntegerLiteral(3))
+                    }
+                ],
+                args
+            )
+        } else {
+            panic!("Did not parse call expression");
+        }
+    }
+
+    #[test]
+    fn parse_call_expr_operator_precedence() {
+        let inputs = [
+            "a + add(b * c) + d",
+            "add(a + b + c * d / f + g)",
+            "add(a, b, 1, 2 * 3, 4 + 5, add(6, 7 * 8))",
+        ];
+        let expected = [
+            "((a + add((b * c))) + d);",
+            "add((((a + b) + ((c * d) / f)) + g));",
+            "add(a, b, 1, (2 * 3), (4 + 5), add(6, (7 * 8)));",
+        ];
+
+        for (input, expect) in inputs.iter().zip(expected) {
+            let mut lexer = Lexer::new(input);
+            let mut parser = Parser::new(&mut lexer);
+            let program = parser.parse_program();
+            no_parse_errs(parser);
+
+            assert_eq!(1, program.len());
+            assert_eq!(expect, program[0].to_string())
+        }
+    }
 }

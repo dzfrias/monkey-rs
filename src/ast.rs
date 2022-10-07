@@ -64,9 +64,15 @@ impl fmt::Display for Expr {
                 let mut joined = String::new();
                 for expr in args {
                     joined.push_str(expr.to_string().as_str());
-                    joined.push_str("; ");
+                    joined.push_str(", ");
                 }
-                write!(f, "{func}({joined})")
+                write!(
+                    f,
+                    "{func}({})",
+                    joined
+                        .strip_suffix(", ")
+                        .expect("Should always have a trailing ', '")
+                )
             }
         }
     }
