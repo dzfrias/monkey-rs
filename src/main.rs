@@ -27,18 +27,17 @@ fn start_repl() {
                 process::exit(1);
             });
 
-        let mut lexer = Lexer::new(&repl_input);
-        let mut parser = Parser::new(&mut lexer);
-        let program = parser.parse_program();
-        let errs = parser.errors();
-        if !errs.is_empty() {
-            println!("Woops! We ran into some monkey business here!");
-            println!("parser errors:");
-            for parser_err in errs {
-                println!("  {parser_err}");
+        let lexer = Lexer::new(&repl_input);
+        let parser = Parser::new(lexer);
+        match parser.parse_program() {
+            Ok(program) => println!("{:?}", program),
+            Err(errs) => {
+                println!("Woops! We ran into some monkey business here!");
+                println!("parser errors:");
+                for parser_err in errs {
+                    println!("  {parser_err}");
+                }
             }
-        } else {
-            println!("{:?}", program);
         }
     }
 }

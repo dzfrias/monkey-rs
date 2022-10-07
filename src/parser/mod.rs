@@ -38,7 +38,7 @@ impl fmt::Display for ParserError {
 
 #[derive(Debug)]
 pub struct Parser<'a> {
-    lexer: &'a mut Lexer<'a>,
+    lexer: Lexer<'a>,
     errors: Vec<ParserError>,
 
     current_tok: Token,
@@ -53,10 +53,10 @@ impl<'a> Parser<'a> {
     /// use monkey_rs::lexer::Lexer;
     ///
     /// let input = "let x = 4;";
-    /// let mut lexer = Lexer::new(input);
-    /// let mut parser = Parser::new(&mut lexer);
+    /// let lexer = Lexer::new(input);
+    /// let parser = Parser::new(lexer);
     /// ```
-    pub fn new(lexer: &'a mut Lexer<'a>) -> Self {
+    pub fn new(lexer: Lexer<'a>) -> Self {
         let mut parser = Self {
             lexer,
             errors: Vec::new(),
@@ -80,9 +80,9 @@ impl<'a> Parser<'a> {
     /// use monkey_rs::ast;
     ///
     /// let input = "2 + 3";
-    /// let mut lexer = Lexer::new(input);
-    /// let mut parser = Parser::new(&mut lexer);
-    /// let program = parser.parse_program();
+    /// let lexer = Lexer::new(input);
+    /// let parser = Parser::new(lexer);
+    /// let program = parser.parse_program().expect("Should have no parser errors");
     /// assert_eq!(1, program.0.len());
     /// assert_eq!(
     ///     ast::Stmt::Expr(ast::Expr::Infix {
@@ -92,8 +92,9 @@ impl<'a> Parser<'a> {
     ///     }),
     ///     program.0[0]
     /// );
+    ///
     /// ```
-    pub fn parse_program(&mut self) -> ast::Program {
+    pub fn parse_program(mut self) -> Result<ast::Program, Vec<ParserError>> {
         let mut program: ast::Program = ast::Block(Vec::new());
 
         while self.current_tok != Token::EOF {
@@ -103,24 +104,11 @@ impl<'a> Parser<'a> {
             self.next_token();
         }
 
-        program
-    }
-
-    /// Gets the [errors](crate::parser::ParserError) that the parser ran into after parsing.
-    /// # Examples
-    /// ```
-    /// use monkey_rs::parser::Parser;
-    /// use monkey_rs::lexer::Lexer;
-    /// use monkey_rs::ast;
-    ///
-    /// let input = "(2 + 3";
-    /// let mut lexer = Lexer::new(input);
-    /// let mut parser = Parser::new(&mut lexer);
-    /// parser.parse_program();
-    /// assert!(parser.errors().len() > 0);
-    /// ```
-    pub fn errors(&self) -> &[ParserError] {
-        self.errors.as_ref()
+        if self.errors.is_empty() {
+            Ok(program)
+        } else {
+            Err(self.errors)
+        }
     }
 
     fn next_token(&mut self) -> &mut Self {
@@ -408,12 +396,8 @@ impl<'a> Parser<'a> {
 mod tests {
     use super::*;
 
-    fn no_parse_errs(parser: Parser) {
-        assert_eq!(Vec::<ParserError>::new(), parser.errors);
-    }
-
-    fn errs_contain(parser: &Parser, err_msg: &str) {
-        assert!(parser.errors.contains(&ParserError(err_msg.to_owned())));
+    fn errs_contain(errs: Vec<ParserError>, err_msg: &str) {
+        assert!(errs.contains(&ParserError(err_msg.to_owned())));
     }
 
     #[test]
@@ -429,11 +413,9 @@ mod tests {
             ("foobar", Expr::IntegerLiteral(838383)),
         ];
 
-        let mut lexer = Lexer::new(input);
-        let mut parser = Parser::new(&mut lexer);
-        let program = parser.parse_program();
-
-        no_parse_errs(parser);
+        let lexer = Lexer::new(input);
+        let parser = Parser::new(lexer);
+        let program = parser.parse_program().expect("Parser errors found");
         assert_eq!(3, program.0.len());
 
         for (stmt, expect) in program.0.iter().zip(expected) {
@@ -449,22 +431,21 @@ mod tests {
     #[test]
     fn parser_throws_err_with_no_ident() {
         let input = "let = 5;";
-        let mut lexer = Lexer::new(input);
-        let mut parser = Parser::new(&mut lexer);
-        parser.parse_program();
+        let lexer = Lexer::new(input);
+        let parser = Parser::new(lexer);
+        let res = parser.parse_program();
 
-        assert!(parser.errors.len() > 0);
-        errs_contain(&parser, "Expected identifier");
+        errs_contain(res.unwrap_err(), "Expected identifier");
     }
 
     #[test]
     fn parser_throws_err_with_no_eq_sign() {
         let input = "let x 5;";
-        let mut lexer = Lexer::new(input);
-        let mut parser = Parser::new(&mut lexer);
-        parser.parse_program();
+        let lexer = Lexer::new(input);
+        let parser = Parser::new(lexer);
+        let res = parser.parse_program();
 
-        errs_contain(&parser, "Expected Assign");
+        errs_contain(res.unwrap_err(), "Expected Assign");
     }
 
     #[test]
@@ -479,11 +460,10 @@ mod tests {
             Expr::BooleanLiteral(true),
             Expr::IntegerLiteral(993322),
         ];
-        let mut lexer = Lexer::new(input);
-        let mut parser = Parser::new(&mut lexer);
+        let lexer = Lexer::new(input);
+        let parser = Parser::new(lexer);
 
-        let program = parser.parse_program();
-        no_parse_errs(parser);
+        let program = parser.parse_program().expect("Parser errors found");
         assert_eq!(3, program.0.len());
 
         for (stmt, expect) in program.0.iter().zip(expected) {
@@ -497,10 +477,9 @@ mod tests {
 
     #[test]
     fn parse_ident_expr() {
-        let mut lexer = Lexer::new("foobar;");
-        let mut parser = Parser::new(&mut lexer);
-        let program = parser.parse_program();
-        no_parse_errs(parser);
+        let lexer = Lexer::new("foobar;");
+        let parser = Parser::new(lexer);
+        let program = parser.parse_program().expect("Parser errors found");
 
         assert_eq!(1, program.0.len());
         assert_eq!(
@@ -511,10 +490,9 @@ mod tests {
 
     #[test]
     fn parse_integer_literal() {
-        let mut lexer = Lexer::new("5;");
-        let mut parser = Parser::new(&mut lexer);
-        let program = parser.parse_program();
-        no_parse_errs(parser);
+        let lexer = Lexer::new("5;");
+        let parser = Parser::new(lexer);
+        let program = parser.parse_program().expect("Parser errors found");
 
         assert_eq!(1, program.0.len());
         assert_eq!(Stmt::Expr(Expr::IntegerLiteral(5)), program.0[0]);
@@ -522,11 +500,11 @@ mod tests {
 
     #[test]
     fn parse_integer_errors_with_int_over_i64_limit() {
-        let mut lexer = Lexer::new("92233720368547758073290;");
-        let mut parser = Parser::new(&mut lexer);
-        parser.parse_program();
+        let lexer = Lexer::new("92233720368547758073290;");
+        let parser = Parser::new(lexer);
+        let res = parser.parse_program();
 
-        errs_contain(&parser, "Integer parsing failed");
+        errs_contain(res.unwrap_err(), "Integer parsing failed");
     }
 
     #[test]
@@ -535,10 +513,9 @@ mod tests {
         let expected = [(ast::PrefixOp::Bang, 5), (ast::PrefixOp::Minus, 15)];
 
         for (input, expect) in inputs.iter().zip(expected) {
-            let mut lexer = Lexer::new(input);
-            let mut parser = Parser::new(&mut lexer);
-            let program = parser.parse_program();
-            no_parse_errs(parser);
+            let lexer = Lexer::new(input);
+            let parser = Parser::new(lexer);
+            let program = parser.parse_program().expect("Parser errors found");
 
             assert_eq!(1, program.0.len());
             assert_eq!(
@@ -567,10 +544,9 @@ mod tests {
         let expected = gen_expected!(Plus, Minus, Asterisk, Slash, Gt, Lt, Eq, NotEq);
 
         for (input, expect) in inputs.iter().zip(expected) {
-            let mut lexer = Lexer::new(input);
-            let mut parser = Parser::new(&mut lexer);
-            let program = parser.parse_program();
-            no_parse_errs(parser);
+            let lexer = Lexer::new(input);
+            let parser = Parser::new(lexer);
+            let program = parser.parse_program().expect("Parser errors found");
 
             assert_eq!(1, program.0.len());
             assert_eq!(
@@ -602,10 +578,9 @@ mod tests {
         ];
 
         for (input, expect) in inputs.iter().zip(expected) {
-            let mut lexer = Lexer::new(input);
-            let mut parser = Parser::new(&mut lexer);
-            let program = parser.parse_program();
-            no_parse_errs(parser);
+            let lexer = Lexer::new(input);
+            let parser = Parser::new(lexer);
+            let program = parser.parse_program().expect("Parser errors found");
             assert_eq!(1, program.0.len());
 
             assert_eq!(expect, program.0[0].to_string());
@@ -630,10 +605,9 @@ mod tests {
         ];
 
         for (input, expect) in inputs.iter().zip(expected) {
-            let mut lexer = Lexer::new(input);
-            let mut parser = Parser::new(&mut lexer);
-            let program = parser.parse_program();
-            no_parse_errs(parser);
+            let lexer = Lexer::new(input);
+            let parser = Parser::new(lexer);
+            let program = parser.parse_program().expect("Parser errors found");
             assert_eq!(1, program.0.len());
             assert_eq!(Stmt::Expr(expect), program.0[0]);
         }
@@ -645,10 +619,9 @@ mod tests {
         let expected = ["((1 + (2 + 3)) + 4);", "((5 + 5) * 2);", "(-(5 + 5));"];
 
         for (input, expect) in inputs.iter().zip(expected) {
-            let mut lexer = Lexer::new(input);
-            let mut parser = Parser::new(&mut lexer);
-            let program = parser.parse_program();
-            no_parse_errs(parser);
+            let lexer = Lexer::new(input);
+            let parser = Parser::new(lexer);
+            let program = parser.parse_program().expect("Parser errors found");
             assert_eq!(1, program.0.len());
             assert_eq!(expect, program.0[0].to_string());
         }
@@ -657,10 +630,10 @@ mod tests {
     #[test]
     fn parse_grouped_expr_needs_closed_paren() {
         let input = "1 + (4 + 5";
-        let mut lexer = Lexer::new(input);
-        let mut parser = Parser::new(&mut lexer);
-        parser.parse_program();
-        errs_contain(&parser, "Expected Rparen");
+        let lexer = Lexer::new(input);
+        let parser = Parser::new(lexer);
+        let res = parser.parse_program();
+        errs_contain(res.unwrap_err(), "Expected Rparen");
     }
 
     #[test]
@@ -674,10 +647,9 @@ mod tests {
         ];
 
         for (input, alt) in inputs.iter().zip(expected_alts) {
-            let mut lexer = Lexer::new(input);
-            let mut parser = Parser::new(&mut lexer);
-            let program = parser.parse_program();
-            no_parse_errs(parser);
+            let lexer = Lexer::new(input);
+            let parser = Parser::new(lexer);
+            let program = parser.parse_program().expect("Parser errors found");
 
             assert_eq!(1, program.0.len());
             match &program.0[0] {
@@ -713,10 +685,9 @@ mod tests {
         let expected_params = [vec!["x", "y"], Vec::new()];
 
         for (input, expected) in inputs.iter().zip(expected_params) {
-            let mut lexer = Lexer::new(input);
-            let mut parser = Parser::new(&mut lexer);
-            let program = parser.parse_program();
-            no_parse_errs(parser);
+            let lexer = Lexer::new(input);
+            let parser = Parser::new(lexer);
+            let program = parser.parse_program().expect("Parser errors found");
 
             assert_eq!(1, program.0.len());
             if let Stmt::Expr(Expr::Function { params, body }) = &program.0[0] {
@@ -742,10 +713,9 @@ mod tests {
     #[test]
     fn parse_call_expr() {
         let input = "add(1, 2 * 3)";
-        let mut lexer = Lexer::new(input);
-        let mut parser = Parser::new(&mut lexer);
-        let program = parser.parse_program();
-        no_parse_errs(parser);
+        let lexer = Lexer::new(input);
+        let parser = Parser::new(lexer);
+        let program = parser.parse_program().expect("Parser errors found");
 
         assert_eq!(1, program.0.len());
         if let Stmt::Expr(Expr::Call { func, args }) = &program.0[0] {
@@ -783,10 +753,9 @@ mod tests {
         ];
 
         for (input, expect) in inputs.iter().zip(expected) {
-            let mut lexer = Lexer::new(input);
-            let mut parser = Parser::new(&mut lexer);
-            let program = parser.parse_program();
-            no_parse_errs(parser);
+            let lexer = Lexer::new(input);
+            let parser = Parser::new(lexer);
+            let program = parser.parse_program().expect("Parser errors found");
 
             assert_eq!(1, program.0.len());
             assert_eq!(expect, program.0[0].to_string())
