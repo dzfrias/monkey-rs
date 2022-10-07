@@ -83,14 +83,14 @@ impl<'a> Parser<'a> {
     /// let mut lexer = Lexer::new(input);
     /// let mut parser = Parser::new(&mut lexer);
     /// let program = parser.parse_program();
-    /// assert_eq!(1, program.len());
+    /// assert_eq!(1, program.0.len());
     /// assert_eq!(
     ///     ast::Stmt::Expr(ast::Expr::Infix {
     ///         left: Box::new(ast::Expr::IntegerLiteral(2)),
     ///         op: ast::InfixOp::Plus,
     ///         right: Box::new(ast::Expr::IntegerLiteral(3)),
     ///     }),
-    ///     program[0]
+    ///     program.0[0]
     /// );
     /// ```
     pub fn parse_program(&mut self) -> ast::Program {
