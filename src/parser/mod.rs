@@ -27,7 +27,7 @@ impl Precendence {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct ParserError(String);
 
 impl fmt::Display for ParserError {
@@ -312,11 +312,11 @@ impl<'a> Parser<'a> {
             alternative = self.parse_block_stmt();
         }
 
-        return Some(Expr::If {
+        Some(Expr::If {
             condition: Box::new(condition),
             consequence,
             alternative,
-        });
+        })
     }
 
     fn parse_block_stmt(&mut self) -> ast::Block {

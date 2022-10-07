@@ -1,6 +1,6 @@
 use std::fmt;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Stmt {
     Let { ident: Identifier, expr: Expr },
     Return { expr: Expr },
@@ -18,7 +18,7 @@ impl fmt::Display for Stmt {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Expr {
     Blank,
     Identifier(Identifier),
@@ -101,7 +101,7 @@ impl fmt::Display for Expr {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Eq)]
 pub enum PrefixOp {
     Minus,
     Bang,
@@ -116,7 +116,7 @@ impl fmt::Display for PrefixOp {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum InfixOp {
     Plus,
     Minus,
@@ -143,7 +143,7 @@ impl fmt::Display for InfixOp {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Identifier(pub String);
 
 impl fmt::Display for Identifier {
@@ -152,7 +152,7 @@ impl fmt::Display for Identifier {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Block(pub Vec<Stmt>);
 impl fmt::Display for Block {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -165,7 +165,7 @@ impl fmt::Display for Block {
             f,
             "{}",
             to_str
-                .strip_suffix(" ")
+                .strip_suffix(' ')
                 .expect("Should always have a trailing ' '")
         )
     }
