@@ -31,10 +31,13 @@ fn start_repl() {
         let mut parser = Parser::new(&mut lexer);
         let program = parser.parse_program();
         let errs = parser.errors();
-        for parser_err in errs {
-            println!("{parser_err}");
-        }
-        if errs.len() == 0 {
+        if !errs.is_empty() {
+            println!("Woops! We ran into some monkey business here!");
+            println!("parser errors:");
+            for parser_err in errs {
+                println!("  {parser_err}");
+            }
+        } else {
             println!("{:?}", program);
         }
     }
