@@ -166,27 +166,23 @@ impl<'a> Parser<'a> {
             self.push_error("Expected identifier");
             return None;
         };
-        // To Ident token
-        self.next_token().expect_peek(Token::Assign)?;
-        while self.current_tok != Token::Semicolon {
+
+        self.next_token().expect_peek(Token::Assign)?.next_token();
+
+        let value = self.parse_expr(Precendence::Lowest)?;
+        if self.peek_tok == Token::Semicolon {
             self.next_token();
         }
-
-        Some(Stmt::Let {
-            ident,
-            expr: Expr::Blank,
-        })
+        Some(Stmt::Let { ident, expr: value })
     }
 
     fn parse_return_statement(&mut self) -> Option<Stmt> {
         // To expression token(s)
-        self.next_token();
-        // TODO: Parse expression
-        while self.current_tok != Token::Semicolon {
+        let return_val = self.next_token().parse_expr(Precendence::Lowest)?;
+        if self.peek_tok == Token::Semicolon {
             self.next_token();
         }
-
-        Some(Stmt::Return { expr: Expr::Blank })
+        Some(Stmt::Return { expr: return_val })
     }
 
     fn parse_expr_stmt(&mut self) -> Option<Stmt> {
@@ -424,9 +420,14 @@ mod tests {
     fn parser_parses_let_stmt() {
         let input = "
         let x = 5;
-        let y = 10;
+        let y = false;
         let foobar = 838383;
         ";
+        let expected = [
+            ("x", Expr::IntegerLiteral(5)),
+            ("y", Expr::BooleanLiteral(false)),
+            ("foobar", Expr::IntegerLiteral(838383)),
+        ];
 
         let mut lexer = Lexer::new(input);
         let mut parser = Parser::new(&mut lexer);
@@ -435,11 +436,12 @@ mod tests {
         no_parse_errs(parser);
         assert_eq!(3, program.0.len());
 
-        let idents = ["x", "y", "foobar"];
-        for (stmt, expect_ident) in program.0.iter().zip(idents) {
-            assert!(matches!(stmt, Stmt::Let { .. }));
-            if let Stmt::Let { ident, .. } = stmt {
-                assert_eq!(expect_ident.to_owned(), ident.0);
+        for (stmt, expect) in program.0.iter().zip(expected) {
+            if let Stmt::Let { ident, expr } = stmt {
+                assert_eq!(expect.0.to_owned(), ident.0);
+                assert_eq!(&expect.1, expr)
+            } else {
+                panic!("Did not parse let statment");
             }
         }
     }
@@ -469,9 +471,14 @@ mod tests {
     fn parse_return_statement() {
         let input = "
         return 5;
-        return 10;
+        return true;
         return 993322;
         ";
+        let expected = [
+            Expr::IntegerLiteral(5),
+            Expr::BooleanLiteral(true),
+            Expr::IntegerLiteral(993322),
+        ];
         let mut lexer = Lexer::new(input);
         let mut parser = Parser::new(&mut lexer);
 
@@ -479,8 +486,12 @@ mod tests {
         no_parse_errs(parser);
         assert_eq!(3, program.0.len());
 
-        for stmt in program.0 {
-            assert!(matches!(stmt, Stmt::Return { .. }));
+        for (stmt, expect) in program.0.iter().zip(expected) {
+            if let Stmt::Return { expr } = stmt {
+                assert_eq!(&expect, expr)
+            } else {
+                panic!("Did not parse return statement")
+            }
         }
     }
 
