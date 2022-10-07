@@ -10,7 +10,7 @@ fn main() {
 }
 
 fn start_repl() {
-    const PROMPT: &'static str = ">> ";
+    const PROMPT: &str = ">> ";
 
     loop {
         let mut repl_input = String::new();

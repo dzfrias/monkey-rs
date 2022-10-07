@@ -130,7 +130,7 @@ impl<'a> Lexer<'a> {
 
     fn read_number(&mut self) -> String {
         let mut number = String::new();
-        while self.ch.is_digit(10) {
+        while self.ch.is_ascii_digit() {
             number.push(self.ch);
             self.read_char();
         }
