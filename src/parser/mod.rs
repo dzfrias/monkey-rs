@@ -94,11 +94,11 @@ impl<'a> Parser<'a> {
     /// );
     /// ```
     pub fn parse_program(&mut self) -> ast::Program {
-        let mut program: ast::Program = Vec::new();
+        let mut program: ast::Program = ast::Block(Vec::new());
 
         while self.current_tok != Token::EOF {
             if let Some(stmt) = self.parse_statement() {
-                program.push(stmt);
+                program.0.push(stmt);
             }
             self.next_token();
         }
@@ -322,7 +322,7 @@ impl<'a> Parser<'a> {
             .expect_peek(Token::Rparen)?
             .expect_peek(Token::Lbrace)?
             .parse_block_stmt();
-        let mut alternative = Vec::new() as ast::Block;
+        let mut alternative = ast::Block(Vec::new());
         if self.peek_tok == Token::Else {
             self.next_token().expect_peek(Token::Lbrace)?;
             alternative = self.parse_block_stmt();
@@ -336,12 +336,12 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_block_stmt(&mut self) -> ast::Block {
-        let mut statements = Vec::new() as ast::Block;
+        let mut statements = ast::Block(Vec::new());
         self.next_token();
         while self.current_tok != Token::Rbrace && self.current_tok != Token::EOF {
             let stmt = self.parse_statement();
             if let Some(stmt) = stmt {
-                statements.push(stmt);
+                statements.0.push(stmt);
             }
             self.next_token();
         }
@@ -433,10 +433,10 @@ mod tests {
         let program = parser.parse_program();
 
         no_parse_errs(parser);
-        assert_eq!(3, program.len());
+        assert_eq!(3, program.0.len());
 
         let idents = ["x", "y", "foobar"];
-        for (stmt, expect_ident) in program.iter().zip(idents) {
+        for (stmt, expect_ident) in program.0.iter().zip(idents) {
             assert!(matches!(stmt, Stmt::Let { .. }));
             if let Stmt::Let { ident, .. } = stmt {
                 assert_eq!(expect_ident.to_owned(), ident.0);
@@ -477,9 +477,9 @@ mod tests {
 
         let program = parser.parse_program();
         no_parse_errs(parser);
-        assert_eq!(3, program.len());
+        assert_eq!(3, program.0.len());
 
-        for stmt in program {
+        for stmt in program.0 {
             assert!(matches!(stmt, Stmt::Return { .. }));
         }
     }
@@ -491,12 +491,10 @@ mod tests {
         let program = parser.parse_program();
         no_parse_errs(parser);
 
-        assert_eq!(1, program.len());
+        assert_eq!(1, program.0.len());
         assert_eq!(
-            vec![Stmt::Expr(Expr::Identifier(ast::Identifier(
-                "foobar".to_owned()
-            )))],
-            program
+            Stmt::Expr(Expr::Identifier(ast::Identifier("foobar".to_owned()))),
+            program.0[0]
         )
     }
 
@@ -507,8 +505,8 @@ mod tests {
         let program = parser.parse_program();
         no_parse_errs(parser);
 
-        assert_eq!(1, program.len());
-        assert_eq!(vec![Stmt::Expr(Expr::IntegerLiteral(5))], program);
+        assert_eq!(1, program.0.len());
+        assert_eq!(Stmt::Expr(Expr::IntegerLiteral(5)), program.0[0]);
     }
 
     #[test]
@@ -531,13 +529,13 @@ mod tests {
             let program = parser.parse_program();
             no_parse_errs(parser);
 
-            assert_eq!(1, program.len());
+            assert_eq!(1, program.0.len());
             assert_eq!(
                 Stmt::Expr(Expr::Prefix {
                     op: expect.0.clone(),
                     expr: Box::new(Expr::IntegerLiteral(expect.1))
                 }),
-                program[0]
+                program.0[0]
             )
         }
     }
@@ -563,14 +561,14 @@ mod tests {
             let program = parser.parse_program();
             no_parse_errs(parser);
 
-            assert_eq!(1, program.len());
+            assert_eq!(1, program.0.len());
             assert_eq!(
                 Stmt::Expr(Expr::Infix {
                     left: Box::new(Expr::IntegerLiteral(expect.0)),
                     op: expect.1,
                     right: Box::new(Expr::IntegerLiteral(expect.2))
                 }),
-                program[0]
+                program.0[0]
             );
         }
     }
@@ -597,9 +595,9 @@ mod tests {
             let mut parser = Parser::new(&mut lexer);
             let program = parser.parse_program();
             no_parse_errs(parser);
-            assert_eq!(1, program.len());
+            assert_eq!(1, program.0.len());
 
-            assert_eq!(expect, program[0].to_string());
+            assert_eq!(expect, program.0[0].to_string());
         }
     }
 
@@ -625,8 +623,8 @@ mod tests {
             let mut parser = Parser::new(&mut lexer);
             let program = parser.parse_program();
             no_parse_errs(parser);
-            assert_eq!(1, program.len());
-            assert_eq!(Stmt::Expr(expect), program[0]);
+            assert_eq!(1, program.0.len());
+            assert_eq!(Stmt::Expr(expect), program.0[0]);
         }
     }
 
@@ -640,8 +638,8 @@ mod tests {
             let mut parser = Parser::new(&mut lexer);
             let program = parser.parse_program();
             no_parse_errs(parser);
-            assert_eq!(1, program.len());
-            assert_eq!(expect, program[0].to_string());
+            assert_eq!(1, program.0.len());
+            assert_eq!(expect, program.0[0].to_string());
         }
     }
 
@@ -658,7 +656,7 @@ mod tests {
     fn parse_if_expr() {
         let inputs = ["if (x < y) { x }", "if (x < y) { x } else { y }"];
         let expected_alts = [
-            Vec::new() as ast::Block,
+            Vec::new(),
             vec![Stmt::Expr(Expr::Identifier(ast::Identifier(
                 "y".to_owned(),
             )))],
@@ -670,8 +668,8 @@ mod tests {
             let program = parser.parse_program();
             no_parse_errs(parser);
 
-            assert_eq!(1, program.len());
-            match &program[0] {
+            assert_eq!(1, program.0.len());
+            match &program.0[0] {
                 Stmt::Expr(Expr::If {
                     condition,
                     consequence,
@@ -686,12 +684,12 @@ mod tests {
                         condition,
                     );
                     assert_eq!(
-                        &vec![Stmt::Expr(Expr::Identifier(ast::Identifier(
+                        vec![Stmt::Expr(Expr::Identifier(ast::Identifier(
                             "x".to_owned()
                         )))],
-                        consequence
+                        consequence.0
                     );
-                    assert_eq!(&alt, alternative);
+                    assert_eq!(alt, alternative.0);
                 }
                 _ => panic!("Did not parse an if expression"),
             }
@@ -709,20 +707,20 @@ mod tests {
             let program = parser.parse_program();
             no_parse_errs(parser);
 
-            assert_eq!(1, program.len());
-            if let Stmt::Expr(Expr::Function { params, body }) = &program[0] {
+            assert_eq!(1, program.0.len());
+            if let Stmt::Expr(Expr::Function { params, body }) = &program.0[0] {
                 let expect_params: Vec<ast::Identifier> = expected
                     .iter()
                     .map(|x| ast::Identifier(x.to_owned().to_owned()))
                     .collect();
                 assert_eq!(&expect_params, params);
                 assert_eq!(
-                    &vec![Stmt::Expr(Expr::Infix {
+                    vec![Stmt::Expr(Expr::Infix {
                         left: Box::new(Expr::Identifier(ast::Identifier("x".to_owned()))),
                         op: ast::InfixOp::Plus,
                         right: Box::new(Expr::Identifier(ast::Identifier("y".to_owned())))
                     })],
-                    body
+                    body.0
                 )
             } else {
                 panic!("Did not parse function expression");
@@ -738,8 +736,8 @@ mod tests {
         let program = parser.parse_program();
         no_parse_errs(parser);
 
-        assert_eq!(1, program.len());
-        if let Stmt::Expr(Expr::Call { func, args }) = &program[0] {
+        assert_eq!(1, program.0.len());
+        if let Stmt::Expr(Expr::Call { func, args }) = &program.0[0] {
             assert_eq!(
                 &Box::new(Expr::Identifier(ast::Identifier("add".to_owned()))),
                 func
@@ -779,8 +777,8 @@ mod tests {
             let program = parser.parse_program();
             no_parse_errs(parser);
 
-            assert_eq!(1, program.len());
-            assert_eq!(expect, program[0].to_string())
+            assert_eq!(1, program.0.len());
+            assert_eq!(expect, program.0[0].to_string())
         }
     }
 }

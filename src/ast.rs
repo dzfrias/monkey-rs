@@ -57,15 +57,38 @@ impl fmt::Display for Expr {
             Expr::BooleanLiteral(b) => write!(f, "{b}"),
             Expr::Prefix { op, expr } => write!(f, "({op}{expr})"),
             Expr::Infix { left, op, right } => write!(f, "({left} {op} {right})"),
-            // TODO: Print out if and function expr
-            Expr::If { .. } => todo!(),
-            Expr::Function { .. } => todo!(),
-            Expr::Call { func, args } => {
-                let mut joined = String::new();
-                for expr in args {
-                    joined.push_str(expr.to_string().as_str());
-                    joined.push_str(", ");
+            Expr::If {
+                condition,
+                consequence,
+                alternative,
+            } => {
+                if alternative.0.is_empty() {
+                    write!(f, "if {condition} {{ {consequence} }}")
+                } else {
+                    write!(
+                        f,
+                        "if {condition} {{ {consequence} }} else {{ {alternative} }}"
+                    )
                 }
+            }
+            Expr::Function { params, body } => {
+                let joined = params
+                    .iter()
+                    .map(|ident| ident.to_string() + ", ")
+                    .collect::<String>();
+                write!(
+                    f,
+                    "fn({}) {{ {body} }}",
+                    joined
+                        .strip_suffix(", ")
+                        .expect("Should always have a trailing ', '")
+                )
+            }
+            Expr::Call { func, args } => {
+                let joined = args
+                    .iter()
+                    .map(|expr| expr.to_string() + ", ")
+                    .collect::<String>();
                 write!(
                     f,
                     "{func}({})",
@@ -129,6 +152,23 @@ impl fmt::Display for Identifier {
     }
 }
 
-pub type Block = Vec<Stmt>;
+#[derive(Debug, PartialEq)]
+pub struct Block(pub Vec<Stmt>);
+impl fmt::Display for Block {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let to_str = self
+            .0
+            .iter()
+            .map(|stmt| stmt.to_string() + " ")
+            .collect::<String>();
+        write!(
+            f,
+            "{}",
+            to_str
+                .strip_suffix(" ")
+                .expect("Should always have a trailing ' '")
+        )
+    }
+}
 
 pub type Program = Block;
