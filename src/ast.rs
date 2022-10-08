@@ -1,10 +1,16 @@
 use std::fmt;
 
+/// A statement represents the possible statement types in the monkey langauge.
+/// There are only three, as monkey uses [expressions](Expr) for most of its
+/// control flow.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Stmt {
+    /// A statement of the form: `let <ident> = <expr>;`
     Let { ident: Identifier, expr: Expr },
+    /// A statement of the form: `return <expr>;`
     Return { expr: Expr },
-    // Wrapper for expressions, makes it possible to put expressions on their own line
+    /// A wrapper for [expressions](Expr), makes it possible to put
+    /// expressions on their own line
     Expr(Expr),
 }
 
@@ -18,30 +24,42 @@ impl fmt::Display for Stmt {
     }
 }
 
+/// An expression in the monkey language.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Expr {
     Blank,
+    /// An identifier
     Identifier(Identifier),
+    /// An 64 bit integer literal
     IntegerLiteral(i64),
+    /// A boolean literal
     BooleanLiteral(bool),
+    /// Operators prefixing other expressions, like ! or -
     Prefix {
         op: PrefixOp,
         expr: Box<Expr>,
     },
+    /// Operators between two expressions, like + or /
     Infix {
         left: Box<Expr>,
         op: InfixOp,
         right: Box<Expr>,
     },
+    /// An if condition of the form: `if (<expr>) { <block> } else { <block> }`.
+    /// The else block is optional
     If {
         condition: Box<Expr>,
         consequence: Block,
         alternative: Block,
     },
+    /// A function of the form: `fn(<param1>, ..., <paramN>) { <block> }`.
+    /// Functions are first class
     Function {
         params: Vec<Identifier>,
         body: Block,
     },
+    /// A function call of the form: `<expr>(<arg1>, ..., <argN>) { <block> }`.
+    /// The expression can be anything that evaluates to a function.
     Call {
         func: Box<Expr>,
         args: Vec<Expr>,
@@ -101,9 +119,12 @@ impl fmt::Display for Expr {
     }
 }
 
+/// A prefix operator that goes before an expression.
 #[derive(Debug, PartialEq, Clone, Eq)]
 pub enum PrefixOp {
+    /// Negative operator
     Minus,
+    /// Not operator
     Bang,
 }
 
@@ -116,15 +137,24 @@ impl fmt::Display for PrefixOp {
     }
 }
 
+/// An infix operator that goes between two expressions.
 #[derive(Debug, PartialEq, Eq)]
 pub enum InfixOp {
+    /// Addition operator
     Plus,
+    /// Subtraction operator
     Minus,
+    /// Multiplication operator
     Asterisk,
+    /// Division operator
     Slash,
+    /// Greater-than operator
     Gt,
+    /// Less-than operator
     Lt,
+    /// Equal operator
     Eq,
+    /// Inequality operator
     NotEq,
 }
 
@@ -143,6 +173,7 @@ impl fmt::Display for InfixOp {
     }
 }
 
+/// An identifier in the monkey language.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Identifier(pub String);
 
@@ -152,6 +183,7 @@ impl fmt::Display for Identifier {
     }
 }
 
+/// A block representing a series of statements.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Block(pub Vec<Stmt>);
 impl fmt::Display for Block {
@@ -171,4 +203,5 @@ impl fmt::Display for Block {
     }
 }
 
+/// A special type of block at the root of the program.
 pub type Program = Block;
