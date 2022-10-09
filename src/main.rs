@@ -1,3 +1,4 @@
+use monkey_rs::evaluator::Evaluator;
 use monkey_rs::lexer::Lexer;
 use monkey_rs::parser::Parser;
 use std::io::{self, Write};
@@ -30,7 +31,13 @@ fn start_repl() {
         let lexer = Lexer::new(&repl_input);
         let parser = Parser::new(lexer);
         match parser.parse_program() {
-            Ok(program) => println!("{:?}", program),
+            Ok(program) => {
+                let evaluator = Evaluator::new();
+                match evaluator.eval(program) {
+                    Some(obj) => println!("{obj}"),
+                    None => println!("Ran into an error evaluating the expression"),
+                }
+            }
             Err(errs) => {
                 println!("Woops! We ran into some monkey business here!");
                 println!("parser errors:");
