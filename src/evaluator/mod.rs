@@ -84,8 +84,8 @@ mod tests {
 
     #[test]
     fn eval_integer() {
-        let inputs = ["1", "4", "32903439", "-5"];
-        let expected = [1, 4, 32903439, -5];
+        let inputs = ["1", "4", "32903439", "-5", "+15"];
+        let expected = [1, 4, 32903439, -5, 15];
 
         for (input, expect) in inputs.iter().zip(expected) {
             let lexer = Lexer::new(input);
