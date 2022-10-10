@@ -49,6 +49,7 @@ impl Evaluator {
         match op {
             ast::PrefixOp::Bang => self.eval_bang_op(right),
             ast::PrefixOp::Minus => self.eval_minus_op(right),
+            ast::PrefixOp::Plus => right,
         }
     }
 

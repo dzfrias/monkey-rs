@@ -191,7 +191,7 @@ impl<'a> Parser<'a> {
             Token::True | Token::False => self
                 .parse_bool()
                 .expect("Should not happen if current token is True or False"),
-            Token::Bang | Token::Minus => self.parse_prefix_expr()?,
+            Token::Bang | Token::Minus | Token::Plus => self.parse_prefix_expr()?,
             Token::Lparen => self.parse_grouped_expr()?,
             Token::If => self.parse_if_expr()?,
             Token::Function => self.parse_function_expr()?,
@@ -269,6 +269,7 @@ impl<'a> Parser<'a> {
         let prefix_op = match self.current_tok {
             Token::Minus => ast::PrefixOp::Minus,
             Token::Bang => ast::PrefixOp::Bang,
+            Token::Plus => ast::PrefixOp::Plus,
             _ => return None,
         };
         let expr = self.next_token().parse_expr(Precendence::Prefix)?;
@@ -509,8 +510,12 @@ mod tests {
 
     #[test]
     fn parse_prefix_expr() {
-        let inputs = ["!5", "-15"];
-        let expected = [(ast::PrefixOp::Bang, 5), (ast::PrefixOp::Minus, 15)];
+        let inputs = ["!5", "-15", "+15"];
+        let expected = [
+            (ast::PrefixOp::Bang, 5),
+            (ast::PrefixOp::Minus, 15),
+            (ast::PrefixOp::Plus, 15),
+        ];
 
         for (input, expect) in inputs.iter().zip(expected) {
             let lexer = Lexer::new(input);

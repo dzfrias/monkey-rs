@@ -27,7 +27,6 @@ impl fmt::Display for Stmt {
 /// An expression in the monkey language.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Expr {
-    Blank,
     /// An identifier
     Identifier(Identifier),
     /// An 64 bit integer literal
@@ -35,10 +34,7 @@ pub enum Expr {
     /// A boolean literal
     BooleanLiteral(bool),
     /// Operators prefixing other expressions, like ! or -
-    Prefix {
-        op: PrefixOp,
-        expr: Box<Expr>,
-    },
+    Prefix { op: PrefixOp, expr: Box<Expr> },
     /// Operators between two expressions, like + or /
     Infix {
         left: Box<Expr>,
@@ -60,16 +56,12 @@ pub enum Expr {
     },
     /// A function call of the form: `<expr>(<arg1>, ..., <argN>) { <block> }`.
     /// The expression can be anything that evaluates to a function.
-    Call {
-        func: Box<Expr>,
-        args: Vec<Expr>,
-    },
+    Call { func: Box<Expr>, args: Vec<Expr> },
 }
 
 impl fmt::Display for Expr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Expr::Blank => write!(f, "BLANK"),
             Expr::Identifier(Identifier(name)) => write!(f, "{name}"),
             Expr::IntegerLiteral(int) => write!(f, "{int}"),
             Expr::BooleanLiteral(b) => write!(f, "{b}"),
@@ -126,6 +118,8 @@ pub enum PrefixOp {
     Minus,
     /// Not operator
     Bang,
+    /// Positive operator
+    Plus,
 }
 
 impl fmt::Display for PrefixOp {
@@ -133,6 +127,7 @@ impl fmt::Display for PrefixOp {
         match self {
             PrefixOp::Minus => write!(f, "-"),
             PrefixOp::Bang => write!(f, "!"),
+            PrefixOp::Plus => write!(f, "+"),
         }
     }
 }
