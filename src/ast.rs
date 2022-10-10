@@ -1,3 +1,5 @@
+use crate::token::Token;
+use std::convert::TryFrom;
 use std::fmt;
 
 /// A statement represents the possible statement types in the monkey langauge.
@@ -122,6 +124,19 @@ pub enum PrefixOp {
     Plus,
 }
 
+impl TryFrom<&Token> for PrefixOp {
+    type Error = String;
+
+    fn try_from(token: &Token) -> Result<Self, Self::Error> {
+        Ok(match token {
+            Token::Minus => Self::Minus,
+            Token::Bang => Self::Bang,
+            Token::Plus => Self::Plus,
+            _ => return Err(format!("Invalid prefix operator token: {:?}", token)),
+        })
+    }
+}
+
 impl fmt::Display for PrefixOp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -151,6 +166,24 @@ pub enum InfixOp {
     Eq,
     /// Inequality operator
     NotEq,
+}
+
+impl TryFrom<&Token> for InfixOp {
+    type Error = String;
+
+    fn try_from(token: &Token) -> Result<Self, Self::Error> {
+        Ok(match token {
+            Token::Plus => Self::Plus,
+            Token::Minus => Self::Minus,
+            Token::Asterisk => Self::Asterisk,
+            Token::Slash => Self::Slash,
+            Token::Gt => Self::Gt,
+            Token::Lt => Self::Lt,
+            Token::Eq => Self::Eq,
+            Token::NotEq => Self::NotEq,
+            _ => return Err(format!("Invalid infix operator token: {:?}", token)),
+        })
+    }
 }
 
 impl fmt::Display for InfixOp {

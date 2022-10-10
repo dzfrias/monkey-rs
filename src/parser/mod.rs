@@ -1,6 +1,7 @@
 use crate::ast::{self, Expr, Stmt};
 use crate::lexer::Lexer;
 use crate::token::Token;
+use std::convert::TryFrom;
 use std::fmt;
 
 #[derive(Debug, PartialEq, PartialOrd)]
@@ -14,8 +15,8 @@ enum Precendence {
     Call,
 }
 
-impl Precendence {
-    fn from_token(token: &Token) -> Self {
+impl From<&Token> for Precendence {
+    fn from(token: &Token) -> Self {
         match token {
             Token::Eq | Token::NotEq => Precendence::Equals,
             Token::Lt | Token::Gt => Precendence::LessGreater,
@@ -132,11 +133,11 @@ impl<'a> Parser<'a> {
     }
 
     fn peek_prec(&self) -> Precendence {
-        Precendence::from_token(&self.peek_tok)
+        Precendence::from(&self.peek_tok)
     }
 
     fn current_prec(&self) -> Precendence {
-        Precendence::from_token(&self.current_tok)
+        Precendence::from(&self.current_tok)
     }
 
     fn parse_statement(&mut self) -> Option<Stmt> {
@@ -266,12 +267,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_prefix_expr(&mut self) -> Option<Expr> {
-        let prefix_op = match self.current_tok {
-            Token::Minus => ast::PrefixOp::Minus,
-            Token::Bang => ast::PrefixOp::Bang,
-            Token::Plus => ast::PrefixOp::Plus,
-            _ => return None,
-        };
+        let prefix_op = ast::PrefixOp::try_from(&self.current_tok).ok()?;
         let expr = self.next_token().parse_expr(Precendence::Prefix)?;
         Some(Expr::Prefix {
             op: prefix_op,
@@ -280,15 +276,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_infix_expr(&mut self, left: Expr) -> Option<Expr> {
-        macro_rules! translate_tokens {
-            ($($token:ident),+) => {
-                match self.current_tok {
-                    $(Token::$token => ast::InfixOp::$token,)*
-                    _ => return None,
-                }
-            };
-        }
-        let infix_op = translate_tokens!(Plus, Minus, Slash, Asterisk, Eq, NotEq, Lt, Gt);
+        let infix_op = ast::InfixOp::try_from(&self.current_tok).ok()?;
         let precendence = self.current_prec();
         let right = self.next_token().parse_expr(precendence)?;
         Some(Expr::Infix {
