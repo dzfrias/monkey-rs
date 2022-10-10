@@ -32,6 +32,10 @@ pub enum Token {
     Eq,
     /// An operator token represented by "!=".
     NotEq,
+    /// An operator token represented by ">=".
+    Ge,
+    /// An operator token represented by "<=".
+    Le,
 
     /// A token represented by ",".
     Comma,

@@ -85,8 +85,8 @@ impl<'a> Lexer<'a> {
             '!' => peek_eq!(NotEq, Bang),
             '/' => Token::Slash,
             '*' => Token::Asterisk,
-            '<' => Token::Lt,
-            '>' => Token::Gt,
+            '<' => peek_eq!(Le, Lt),
+            '>' => peek_eq!(Ge, Gt),
             '{' => Token::Lbrace,
             '}' => Token::Rbrace,
             '\0' => Token::EOF,
@@ -306,7 +306,12 @@ mod tests {
 
     #[test]
     fn next_token_tokenizes_2_length_binary_ops() {
-        let ops = HashMap::from([("==", Token::Eq), ("!=", Token::NotEq)]);
+        let ops = HashMap::from([
+            ("==", Token::Eq),
+            ("!=", Token::NotEq),
+            (">=", Token::Ge),
+            ("<=", Token::Le),
+        ]);
         for (keyword, token) in ops.iter() {
             let mut lex = Lexer::new(keyword);
             assert_eq!(*token, lex.next_token());

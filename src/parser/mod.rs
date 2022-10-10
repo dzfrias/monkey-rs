@@ -19,7 +19,7 @@ impl From<&Token> for Precendence {
     fn from(token: &Token) -> Self {
         match token {
             Token::Eq | Token::NotEq => Precendence::Equals,
-            Token::Lt | Token::Gt => Precendence::LessGreater,
+            Token::Lt | Token::Gt | Token::Le | Token::Ge => Precendence::LessGreater,
             Token::Plus | Token::Minus => Precendence::Sum,
             Token::Slash | Token::Asterisk => Precendence::Product,
             Token::Lparen => Precendence::Call,
@@ -213,7 +213,9 @@ impl<'a> Parser<'a> {
                 | Token::Eq
                 | Token::NotEq
                 | Token::Lt
-                | Token::Gt => self.next_token().parse_infix_expr(left_exp)?,
+                | Token::Gt
+                | Token::Ge
+                | Token::Le => self.next_token().parse_infix_expr(left_exp)?,
                 Token::Lparen => self.next_token().parse_call_expr(left_exp)?,
                 _ => return Some(left_exp),
             };
@@ -560,14 +562,14 @@ mod tests {
             "5 < 4 == 3 > 4",
             "a * b / c",
             "!-a",
-            "3 + 4 * 5 == 3 * 1 + 4 * 5",
+            "3 + 4 * 5 <= 3 * 1 + 4 * 5",
         ];
         let expected = [
             "((-a) * b);",
             "((5 < 4) == (3 > 4));",
             "((a * b) / c);",
             "(!(-a));",
-            "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)));",
+            "((3 + (4 * 5)) <= ((3 * 1) + (4 * 5)));",
         ];
 
         for (input, expect) in inputs.iter().zip(expected) {

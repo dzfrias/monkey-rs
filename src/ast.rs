@@ -166,6 +166,10 @@ pub enum InfixOp {
     Eq,
     /// Inequality operator
     NotEq,
+    /// Greater-than or equal-to operator
+    Ge,
+    /// Less-than or equal-to operator
+    Le,
 }
 
 impl TryFrom<&Token> for InfixOp {
@@ -181,6 +185,8 @@ impl TryFrom<&Token> for InfixOp {
             Token::Lt => Self::Lt,
             Token::Eq => Self::Eq,
             Token::NotEq => Self::NotEq,
+            Token::Ge => Self::Ge,
+            Token::Le => Self::Le,
             _ => return Err(format!("Invalid infix operator token: {:?}", token)),
         })
     }
@@ -197,6 +203,8 @@ impl fmt::Display for InfixOp {
             InfixOp::Lt => write!(f, "<"),
             InfixOp::Eq => write!(f, "=="),
             InfixOp::NotEq => write!(f, "!="),
+            InfixOp::Ge => write!(f, ">="),
+            InfixOp::Le => write!(f, "<="),
         }
     }
 }
