@@ -474,7 +474,7 @@ mod tests {
 
         assert_eq!(1, program.0.len());
         assert_eq!(
-            Stmt::Expr(Expr::Identifier(ast::Identifier("foobar".to_owned()))),
+            Stmt::Expr(Expr::Identifier(ast::Identifier::from("foobar"))),
             program.0[0]
         )
     }
@@ -636,9 +636,7 @@ mod tests {
         let inputs = ["if (x < y) { x }", "if (x < y) { x } else { y }"];
         let expected_alts = [
             Vec::new(),
-            vec![Stmt::Expr(Expr::Identifier(ast::Identifier(
-                "y".to_owned(),
-            )))],
+            vec![Stmt::Expr(Expr::Identifier(ast::Identifier::from("y")))],
         ];
 
         for (input, alt) in inputs.iter().zip(expected_alts) {
@@ -655,16 +653,14 @@ mod tests {
                 }) => {
                     assert_eq!(
                         &Box::new(Expr::Infix {
-                            left: Box::new(Expr::Identifier(ast::Identifier("x".to_owned()))),
+                            left: Box::new(Expr::Identifier(ast::Identifier::from("x"))),
                             op: ast::InfixOp::Lt,
-                            right: Box::new(Expr::Identifier(ast::Identifier("y".to_owned())))
+                            right: Box::new(Expr::Identifier(ast::Identifier::from("y")))
                         }),
                         condition,
                     );
                     assert_eq!(
-                        vec![Stmt::Expr(Expr::Identifier(ast::Identifier(
-                            "x".to_owned()
-                        )))],
+                        vec![Stmt::Expr(Expr::Identifier(ast::Identifier::from("x")))],
                         consequence.0
                     );
                     assert_eq!(alt, alternative.0);
@@ -688,14 +684,14 @@ mod tests {
             if let Stmt::Expr(Expr::Function { params, body }) = &program.0[0] {
                 let expect_params: Vec<ast::Identifier> = expected
                     .iter()
-                    .map(|x| ast::Identifier(x.to_owned().to_owned()))
+                    .map(|x| ast::Identifier::from(x.to_owned()))
                     .collect();
                 assert_eq!(&expect_params, params);
                 assert_eq!(
                     vec![Stmt::Expr(Expr::Infix {
-                        left: Box::new(Expr::Identifier(ast::Identifier("x".to_owned()))),
+                        left: Box::new(Expr::Identifier(ast::Identifier::from("x"))),
                         op: ast::InfixOp::Plus,
-                        right: Box::new(Expr::Identifier(ast::Identifier("y".to_owned())))
+                        right: Box::new(Expr::Identifier(ast::Identifier::from("y")))
                     })],
                     body.0
                 )
@@ -715,7 +711,7 @@ mod tests {
         assert_eq!(1, program.0.len());
         if let Stmt::Expr(Expr::Call { func, args }) = &program.0[0] {
             assert_eq!(
-                &Box::new(Expr::Identifier(ast::Identifier("add".to_owned()))),
+                &Box::new(Expr::Identifier(ast::Identifier::from("add"))),
                 func
             );
             assert_eq!(

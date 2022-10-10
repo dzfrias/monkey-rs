@@ -213,6 +213,12 @@ impl fmt::Display for InfixOp {
 #[derive(Debug, PartialEq, Eq)]
 pub struct Identifier(pub String);
 
+impl From<&str> for Identifier {
+    fn from(s: &str) -> Self {
+        Self(s.to_owned())
+    }
+}
+
 impl fmt::Display for Identifier {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
