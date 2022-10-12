@@ -84,6 +84,7 @@ impl Evaluator {
             ast::InfixOp::Minus => Object::Int(x - y),
             ast::InfixOp::Asterisk => Object::Int(x * y),
             ast::InfixOp::Slash => Object::Int(x / y),
+            ast::InfixOp::Modulo => Object::Int(x % y),
             ast::InfixOp::Eq => bool_to_obj(x == y),
             ast::InfixOp::NotEq => bool_to_obj(x != y),
             ast::InfixOp::Gt => bool_to_obj(x > y),

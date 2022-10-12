@@ -23,6 +23,8 @@ pub enum Token {
     Asterisk,
     /// An operator token represented by "/".
     Slash,
+    /// An operator token represented by "%".
+    Percent,
 
     /// An operator token represented by "<".
     Lt,

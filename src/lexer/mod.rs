@@ -85,6 +85,7 @@ impl<'a> Lexer<'a> {
             '!' => peek_eq!(NotEq, Bang),
             '/' => Token::Slash,
             '*' => Token::Asterisk,
+            '%' => Token::Percent,
             '<' => peek_eq!(Le, Lt),
             '>' => peek_eq!(Ge, Gt),
             '{' => Token::Lbrace,

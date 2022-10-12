@@ -21,7 +21,7 @@ impl From<&Token> for Precendence {
             Token::Eq | Token::NotEq => Precendence::Equals,
             Token::Lt | Token::Gt | Token::Le | Token::Ge => Precendence::LessGreater,
             Token::Plus | Token::Minus => Precendence::Sum,
-            Token::Slash | Token::Asterisk => Precendence::Product,
+            Token::Slash | Token::Asterisk | Token::Percent => Precendence::Product,
             Token::Lparen => Precendence::Call,
             _ => Precendence::Lowest,
         }
@@ -215,7 +215,8 @@ impl<'a> Parser<'a> {
                 | Token::Lt
                 | Token::Gt
                 | Token::Ge
-                | Token::Le => self.next_token().parse_infix_expr(left_exp)?,
+                | Token::Le
+                | Token::Percent => self.next_token().parse_infix_expr(left_exp)?,
                 Token::Lparen => self.next_token().parse_call_expr(left_exp)?,
                 _ => return Some(left_exp),
             };

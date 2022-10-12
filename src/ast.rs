@@ -170,6 +170,8 @@ pub enum InfixOp {
     Ge,
     /// Less-than or equal-to operator
     Le,
+    /// Modulus operator
+    Modulo,
 }
 
 impl TryFrom<&Token> for InfixOp {
@@ -187,6 +189,7 @@ impl TryFrom<&Token> for InfixOp {
             Token::NotEq => Self::NotEq,
             Token::Ge => Self::Ge,
             Token::Le => Self::Le,
+            Token::Percent => Self::Modulo,
             _ => return Err(format!("Invalid infix operator token: {:?}", token)),
         })
     }
@@ -205,6 +208,7 @@ impl fmt::Display for InfixOp {
             InfixOp::NotEq => write!(f, "!="),
             InfixOp::Ge => write!(f, ">="),
             InfixOp::Le => write!(f, "<="),
+            InfixOp::Modulo => write!(f, "%"),
         }
     }
 }
