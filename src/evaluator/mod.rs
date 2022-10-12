@@ -79,12 +79,17 @@ impl Evaluator {
     }
 
     fn eval_int_infix_expr(&self, op: ast::InfixOp, x: i64, y: i64) -> Object {
+        macro_rules! checked_op {
+            ($op:ident) => {
+                x.$op(y).map_or(Object::Null, |x| Object::Int(x))
+            };
+        }
         match op {
-            ast::InfixOp::Plus => Object::Int(x + y),
-            ast::InfixOp::Minus => Object::Int(x - y),
-            ast::InfixOp::Asterisk => Object::Int(x * y),
-            ast::InfixOp::Slash => Object::Int(x / y),
-            ast::InfixOp::Modulo => Object::Int(x % y),
+            ast::InfixOp::Plus => checked_op!(checked_add),
+            ast::InfixOp::Minus => checked_op!(checked_sub),
+            ast::InfixOp::Asterisk => checked_op!(checked_mul),
+            ast::InfixOp::Slash => checked_op!(checked_div),
+            ast::InfixOp::Modulo => checked_op!(checked_rem),
             ast::InfixOp::Eq => bool_to_obj(x == y),
             ast::InfixOp::NotEq => bool_to_obj(x != y),
             ast::InfixOp::Gt => bool_to_obj(x > y),
