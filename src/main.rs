@@ -2,9 +2,13 @@ use clap::Parser as ArgParser;
 use monkey_rs::evaluator::Evaluator;
 use monkey_rs::lexer::Lexer;
 use monkey_rs::parser::Parser;
-use rustyline::config::{Builder, EditMode};
 use rustyline::error::ReadlineError;
-use rustyline::{Editor, Result};
+use rustyline::{Config, EditMode, Editor, Result};
+
+fn main() -> Result<()> {
+    let args = Args::parse();
+    start_repl(args.vi)
+}
 
 #[derive(Debug, ArgParser)]
 #[command(author, version, about, long_about = None)]
@@ -13,21 +17,15 @@ struct Args {
     vi: bool,
 }
 
-fn main() -> Result<()> {
+fn start_repl(vi: bool) -> Result<()> {
     const PROMPT: &str = ">> ";
     println!("Hello! This is the Monkey programming language");
     println!("Feel free to type in commands");
 
-    let args = Args::parse();
-    let mut edit_mode = EditMode::Emacs;
-    if args.vi {
-        edit_mode = EditMode::Vi;
-    }
-
-    let config = Builder::new()
+    let config = Config::builder()
         .indent_size(4)
         .tab_stop(4)
-        .edit_mode(edit_mode)
+        .edit_mode(if vi { EditMode::Vi } else { EditMode::Emacs })
         .build();
     let mut editor = Editor::<()>::with_config(config)?;
     loop {
