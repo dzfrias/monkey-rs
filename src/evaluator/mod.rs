@@ -45,7 +45,7 @@ impl Evaluator {
     fn eval_stmt(&self, stmt: Stmt) -> EvalResult {
         match stmt {
             Stmt::Expr(expr) => self.eval_expr(expr),
-            _ => todo!(),
+            _ => todo!("evaluating `{:?}`", stmt),
         }
     }
 
@@ -57,7 +57,7 @@ impl Evaluator {
                 self.eval_infix_expr(op, self.eval_expr(*left)?, self.eval_expr(*right)?)
             }
             Expr::Prefix { op, expr } => self.eval_prefix_expr(op, self.eval_expr(*expr)?),
-            _ => todo!(),
+            _ => todo!("evaluating `{:?}`", expr),
         }
     }
 
@@ -270,11 +270,11 @@ mod tests {
         let errs = [
             RuntimeError::InvalidPrefixOperand {
                 op: ast::PrefixOp::Plus,
-                right: Object::Bool(true),
+                right: TRUE,
             },
             RuntimeError::InvalidPrefixOperand {
                 op: ast::PrefixOp::Minus,
-                right: Object::Bool(false),
+                right: FALSE,
             },
             RuntimeError::InvalidPrefixOperand {
                 op: ast::PrefixOp::Bang,
@@ -292,22 +292,22 @@ mod tests {
             RuntimeError::InvalidInfixOperands {
                 op: ast::InfixOp::Plus,
                 left: Object::Int(1),
-                right: Object::Bool(true),
+                right: TRUE,
             },
             RuntimeError::InvalidInfixOperands {
                 op: ast::InfixOp::Ge,
-                left: Object::Bool(true),
-                right: Object::Bool(false),
+                left: TRUE,
+                right: FALSE,
             },
             RuntimeError::InvalidInfixOperands {
                 op: ast::InfixOp::Gt,
-                left: Object::Bool(false),
+                left: FALSE,
                 right: Object::Int(1),
             },
             RuntimeError::InvalidInfixOperands {
                 op: ast::InfixOp::Slash,
                 left: Object::Int(3),
-                right: Object::Bool(true),
+                right: TRUE,
             },
         ];
 
