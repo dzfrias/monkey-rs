@@ -4,6 +4,7 @@ use monkey_rs::lexer::Lexer;
 use monkey_rs::parser::Parser;
 use rustyline::error::ReadlineError;
 use rustyline::{Config, EditMode, Editor, Result};
+use std::process;
 
 fn main() -> Result<()> {
     let args = Args::parse();
@@ -13,6 +14,7 @@ fn main() -> Result<()> {
 #[derive(Debug, ArgParser)]
 #[command(author, version, about, long_about = None)]
 struct Args {
+    /// Chooses between Emacs or Vi keybinds the REPL input
     #[arg(short, long, default_value_t = false)]
     vi: bool,
 }
@@ -46,18 +48,19 @@ fn start_repl(vi: bool) -> Result<()> {
                     }
                     Err(errs) => {
                         println!("Woops! We ran into some monkey business here!");
-                        println!("parser errors:");
+                        println!("Parser errors:");
                         for parser_err in errs {
                             println!("  {parser_err}");
                         }
                     }
                 }
+                println!("");
             }
             Err(ReadlineError::Interrupted) => break,
             Err(ReadlineError::Eof) => break,
             Err(err) => {
-                println!("Error reading repl input: {:?}", err);
-                break;
+                eprintln!("Error reading repl input: {:?}", err);
+                process::exit(1);
             }
         }
     }
