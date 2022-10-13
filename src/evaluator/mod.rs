@@ -2,8 +2,25 @@ pub mod object;
 
 use crate::ast::{self, Expr, Stmt};
 use object::Object;
+use thiserror::Error;
 
-type EvalResult = Result<Object, String>;
+#[derive(Error, Debug)]
+pub enum RuntimeError {
+    #[error("cannot perform `{op}` on `{right}`")]
+    InvalidPrefixOperand { op: ast::PrefixOp, right: Object },
+    #[error("cannot perform `{op}` between `{right}` and `{left}`")]
+    InvalidInfixOperands {
+        op: ast::InfixOp,
+        left: Object,
+        right: Object,
+    },
+    #[error("integer overflow occured in the expression: `{x} {op} {y}`")]
+    IntegerOverflow { op: ast::InfixOp, x: i64, y: i64 },
+    #[error("division by zero occured in the expression: `{x} {op} {y}`")]
+    DivisionByZero { op: ast::InfixOp, x: i64, y: i64 },
+}
+
+type EvalResult = Result<Object, RuntimeError>;
 
 const TRUE: Object = Object::Bool(true);
 const FALSE: Object = Object::Bool(false);
@@ -18,11 +35,11 @@ impl Evaluator {
     }
 
     pub fn eval(&self, program: ast::Program) -> EvalResult {
-        let mut result = Err("".to_owned());
+        let mut result = NULL;
         for stmt in program.0 {
-            result = self.eval_stmt(stmt);
+            result = self.eval_stmt(stmt)?;
         }
-        result
+        Ok(result)
     }
 
     fn eval_stmt(&self, stmt: Stmt) -> EvalResult {
@@ -57,21 +74,30 @@ impl Evaluator {
             TRUE => Ok(FALSE),
             FALSE => Ok(TRUE),
             NULL => Ok(TRUE),
-            _ => Err(format!("Cannot perform `!` on `{right}`")),
+            _ => Err(RuntimeError::InvalidPrefixOperand {
+                op: ast::PrefixOp::Bang,
+                right,
+            }),
         }
     }
 
     fn eval_minus_op(&self, right: Object) -> EvalResult {
         match right {
             Object::Int(i) => Ok(Object::Int(-i)),
-            _ => Err(format!("Cannot perform `-` on `{right}`")),
+            _ => Err(RuntimeError::InvalidPrefixOperand {
+                op: ast::PrefixOp::Minus,
+                right,
+            }),
         }
     }
 
     fn eval_plus_op(&self, right: Object) -> EvalResult {
         match right {
             Object::Int(_) => Ok(right),
-            _ => Err(format!("Cannot perform `+` on {right}")),
+            _ => Err(RuntimeError::InvalidPrefixOperand {
+                op: ast::PrefixOp::Plus,
+                right,
+            }),
         }
     }
 
@@ -82,28 +108,35 @@ impl Evaluator {
             match op {
                 ast::InfixOp::Eq => Ok(bool_to_obj(left == right)),
                 ast::InfixOp::NotEq => Ok(bool_to_obj(left != right)),
-                _ => Err(format!("Cannot perform `{op}` on `{left}` and `{right}`")),
+                _ => Err(RuntimeError::InvalidInfixOperands { op, left, right }),
             }
         }
     }
 
     fn eval_int_infix_expr(&self, op: ast::InfixOp, x: i64, y: i64) -> EvalResult {
-        macro_rules! checked_op {
+        macro_rules! check_overflow {
             ($op:ident) => {
-                x.$op(y).map_or(
-                    Err(format!(
-                        "Integer overflow occured in the expression: `{x} {op} {y}`"
-                    )),
-                    |x| Ok(Object::Int(x)),
-                )
+                x.$op(y)
+                    .map_or(Err(RuntimeError::IntegerOverflow { op, x, y }), |x| {
+                        Ok(Object::Int(x))
+                    })
             };
         }
+        macro_rules! check_zero_div {
+            ($op:ident) => {
+                x.$op(y)
+                    .map_or(Err(RuntimeError::DivisionByZero { op, x, y }), |x| {
+                        Ok(Object::Int(x))
+                    })
+            };
+        }
+
         match op {
-            ast::InfixOp::Plus => checked_op!(checked_add),
-            ast::InfixOp::Minus => checked_op!(checked_sub),
-            ast::InfixOp::Asterisk => checked_op!(checked_mul),
-            ast::InfixOp::Slash => checked_op!(checked_div),
-            ast::InfixOp::Modulo => checked_op!(checked_rem),
+            ast::InfixOp::Plus => check_overflow!(checked_add),
+            ast::InfixOp::Minus => check_overflow!(checked_sub),
+            ast::InfixOp::Asterisk => check_overflow!(checked_mul),
+            ast::InfixOp::Slash => check_zero_div!(checked_div),
+            ast::InfixOp::Modulo => check_zero_div!(checked_rem),
             ast::InfixOp::Eq => Ok(bool_to_obj(x == y)),
             ast::InfixOp::NotEq => Ok(bool_to_obj(x != y)),
             ast::InfixOp::Gt => Ok(bool_to_obj(x > y)),
