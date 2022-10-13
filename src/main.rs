@@ -20,7 +20,7 @@ struct Args {
 fn start_repl(vi: bool) -> Result<()> {
     const PROMPT: &str = ">> ";
     println!("Hello! This is the Monkey programming language");
-    println!("Feel free to type in commands");
+    println!("Feel free to type in commands\n");
 
     let config = Config::builder()
         .indent_size(4)
@@ -40,8 +40,8 @@ fn start_repl(vi: bool) -> Result<()> {
                     Ok(program) => {
                         let evaluator = Evaluator::new();
                         match evaluator.eval(program) {
-                            Some(obj) => println!("{obj}"),
-                            None => println!("Ran into an error evaluating the expression"),
+                            Ok(obj) => println!("{obj}"),
+                            Err(err) => println!("Runtime error: {}", err),
                         }
                     }
                     Err(errs) => {
