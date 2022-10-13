@@ -4,7 +4,7 @@ use crate::ast::{self, Expr, Stmt};
 use object::Object;
 use thiserror::Error;
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq, Eq)]
 pub enum RuntimeError {
     #[error("cannot perform `{op}` on `{right}`")]
     InvalidPrefixOperand { op: ast::PrefixOp, right: Object },
@@ -177,7 +177,29 @@ mod tests {
                     .expect("Should have no parser errors");
                 let eval = Evaluator::new();
 
-                assert_eq!(expect, eval.eval(program).expect("Should not return none"))
+                assert_eq!(
+                    expect,
+                    eval.eval(program).expect("Should evaluate with no error")
+                );
+            }
+        };
+    }
+
+    macro_rules! rt_err_eval {
+        ($inputs:expr, $errs:expr) => {
+            for (input, err) in $inputs.iter().zip($errs) {
+                let lexer = Lexer::new(input);
+                let parser = Parser::new(lexer);
+                let program = parser
+                    .parse_program()
+                    .expect("Should have no parser errors");
+                let eval = Evaluator::new();
+
+                assert_eq!(
+                    err,
+                    eval.eval(program)
+                        .expect_err("Should evaluate with an error")
+                );
             }
         };
     }
@@ -209,6 +231,7 @@ mod tests {
             "3 - 4",
             "4 * 5",
             "20 / 4",
+            "10 % 2",
             "20 == 20",
             "15 != 5",
             "10 > 4",
@@ -222,6 +245,7 @@ mod tests {
             Object::Int(-1),
             Object::Int(20),
             Object::Int(5),
+            Object::Int(0),
             TRUE,
             TRUE,
             TRUE,
@@ -238,5 +262,102 @@ mod tests {
         let inputs = ["true == true", "true == false", "3 * 5 == 15", "4 / 2 != 2"];
         let expected = [TRUE, FALSE, TRUE, FALSE];
         test_eval!(inputs, expected);
+    }
+
+    #[test]
+    fn invalid_prefix_operand_runtime_error() {
+        let inputs = ["+true", "-false", "!5"];
+        let errs = [
+            RuntimeError::InvalidPrefixOperand {
+                op: ast::PrefixOp::Plus,
+                right: Object::Bool(true),
+            },
+            RuntimeError::InvalidPrefixOperand {
+                op: ast::PrefixOp::Minus,
+                right: Object::Bool(false),
+            },
+            RuntimeError::InvalidPrefixOperand {
+                op: ast::PrefixOp::Bang,
+                right: Object::Int(5),
+            },
+        ];
+
+        rt_err_eval!(inputs, errs);
+    }
+
+    #[test]
+    fn invalid_infix_operands_runtime_error() {
+        let inputs = ["1 + true", "true >= false", "false > 1", "3 / true"];
+        let errs = [
+            RuntimeError::InvalidInfixOperands {
+                op: ast::InfixOp::Plus,
+                left: Object::Int(1),
+                right: Object::Bool(true),
+            },
+            RuntimeError::InvalidInfixOperands {
+                op: ast::InfixOp::Ge,
+                left: Object::Bool(true),
+                right: Object::Bool(false),
+            },
+            RuntimeError::InvalidInfixOperands {
+                op: ast::InfixOp::Gt,
+                left: Object::Bool(false),
+                right: Object::Int(1),
+            },
+            RuntimeError::InvalidInfixOperands {
+                op: ast::InfixOp::Slash,
+                left: Object::Int(3),
+                right: Object::Bool(true),
+            },
+        ];
+
+        rt_err_eval!(inputs, errs);
+    }
+
+    #[test]
+    fn integer_overflow_runtime_error() {
+        let inputs = [
+            "9223372036854775807 + 1",
+            "-9223372036854775807 - 2",
+            "9223372036854775807 * 2",
+        ];
+        let errs = [
+            RuntimeError::IntegerOverflow {
+                op: ast::InfixOp::Plus,
+                x: 9223372036854775807,
+                y: 1,
+            },
+            RuntimeError::IntegerOverflow {
+                op: ast::InfixOp::Minus,
+                x: -9223372036854775807,
+                y: 2,
+            },
+            RuntimeError::IntegerOverflow {
+                op: ast::InfixOp::Asterisk,
+                x: 9223372036854775807,
+                y: 2,
+            },
+        ];
+
+        rt_err_eval!(inputs, errs);
+    }
+
+    #[test]
+    fn divide_by_zero_runtime_error() {
+        let inputs = ["1 / 0", "2 % 0"];
+        let errs = [
+            RuntimeError::DivisionByZero {
+                op: ast::InfixOp::Slash,
+                x: 1,
+                y: 0,
+            },
+            RuntimeError::DivisionByZero {
+                op: ast::InfixOp::Modulo,
+                x: 2,
+                y: 0,
+            },
+        ];
+
+        rt_err_eval!(inputs, errs);
     }
 }
