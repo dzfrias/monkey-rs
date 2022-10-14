@@ -30,6 +30,7 @@ fn start_repl(vi: bool) -> Result<()> {
         .edit_mode(if vi { EditMode::Vi } else { EditMode::Emacs })
         .build();
     let mut editor = Editor::<()>::with_config(config)?;
+    let mut evaluator = Evaluator::new();
     loop {
         let readline = editor.readline(PROMPT);
         match readline {
@@ -39,13 +40,10 @@ fn start_repl(vi: bool) -> Result<()> {
                 let lexer = Lexer::new(&line);
                 let parser = Parser::new(lexer);
                 match parser.parse_program() {
-                    Ok(program) => {
-                        let evaluator = Evaluator::new();
-                        match evaluator.eval(program) {
-                            Ok(obj) => println!("{obj}"),
-                            Err(err) => println!("Runtime error: {}", err),
-                        }
-                    }
+                    Ok(program) => match evaluator.eval(program) {
+                        Ok(obj) => println!("{obj}"),
+                        Err(err) => println!("Runtime error: {}", err),
+                    },
                     Err(errs) => {
                         println!("Woops! We ran into some monkey business here!");
                         println!("Parser errors:");

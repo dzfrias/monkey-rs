@@ -1,6 +1,8 @@
+pub mod env;
 pub mod object;
 
 use crate::ast::{self, Expr, Stmt};
+use env::Env;
 use object::Object;
 use thiserror::Error;
 
@@ -18,6 +20,8 @@ pub enum RuntimeError {
     IntegerOverflow { op: ast::InfixOp, x: i64, y: i64 },
     #[error("division by zero occured in the expression: `{x} {op} {y}`")]
     DivisionByZero { op: ast::InfixOp, x: i64, y: i64 },
+    #[error("variable not found: `{name}`")]
+    VariableNotFound { name: String },
 }
 
 type EvalResult = Result<Object, RuntimeError>;
@@ -27,14 +31,16 @@ const FALSE: Object = Object::Bool(false);
 const NULL: Object = Object::Null;
 
 #[derive(Debug)]
-pub struct Evaluator {}
+pub struct Evaluator {
+    env: Env,
+}
 
 impl Evaluator {
     pub fn new() -> Self {
-        Self {}
+        Self { env: Env::new() }
     }
 
-    pub fn eval(&self, program: ast::Program) -> EvalResult {
+    pub fn eval(&mut self, program: ast::Program) -> EvalResult {
         let mut result = NULL;
         for stmt in program.0 {
             result = self.eval_stmt(stmt)?;
@@ -45,7 +51,7 @@ impl Evaluator {
         Ok(result)
     }
 
-    fn eval_stmts(&self, stmts: ast::Block) -> EvalResult {
+    fn eval_stmts(&mut self, stmts: ast::Block) -> EvalResult {
         let mut result = NULL;
         for stmt in stmts.0 {
             result = self.eval_stmt(stmt)?;
@@ -56,31 +62,41 @@ impl Evaluator {
         Ok(result)
     }
 
-    fn eval_stmt(&self, stmt: Stmt) -> EvalResult {
+    fn eval_stmt(&mut self, stmt: Stmt) -> EvalResult {
         match stmt {
             Stmt::Expr(expr) => self.eval_expr(expr),
             Stmt::Return { expr } => Ok(Object::ReturnVal(Box::new(self.eval_expr(expr)?))),
-            _ => todo!("evaluating `{:?}`", stmt),
+            Stmt::Let { ident, expr } => {
+                let name = ident.0;
+                let val = self.eval_expr(expr)?;
+                self.env.set(name, val);
+                Ok(NULL)
+            }
         }
     }
 
-    fn eval_expr(&self, expr: Expr) -> EvalResult {
+    fn eval_expr(&mut self, expr: Expr) -> EvalResult {
         match expr {
+            Expr::Identifier(ast::Identifier(name)) => self.eval_ident(&name),
             Expr::IntegerLiteral(i) => Ok(Object::Int(i)),
             Expr::BooleanLiteral(b) => Ok(bool_to_obj(b)),
             Expr::Infix { left, op, right } => {
-                self.eval_infix_expr(op, self.eval_expr(*left)?, self.eval_expr(*right)?)
+                let left_val = self.eval_expr(*left)?;
+                let right_val = self.eval_expr(*right)?;
+                self.eval_infix_expr(op, left_val, right_val)
             }
-            Expr::Prefix { op, expr } => self.eval_prefix_expr(op, self.eval_expr(*expr)?),
+            Expr::Prefix { op, expr } => {
+                let right = self.eval_expr(*expr)?;
+                self.eval_prefix_expr(op, right)
+            }
             Expr::If {
                 condition,
                 consequence,
                 alternative,
-            } => self.eval_if_expr(
-                is_truthy(self.eval_expr(*condition)?),
-                consequence,
-                alternative,
-            ),
+            } => {
+                let truthy = is_truthy(self.eval_expr(*condition)?);
+                self.eval_if_expr(truthy, consequence, alternative)
+            }
             _ => todo!("evaluating `{:?}`", expr),
         }
     }
@@ -171,7 +187,7 @@ impl Evaluator {
     }
 
     fn eval_if_expr(
-        &self,
+        &mut self,
         condition: bool,
         consequence: ast::Block,
         alternative: Option<ast::Block>,
@@ -182,6 +198,17 @@ impl Evaluator {
             self.eval_stmts(alt)
         } else {
             Ok(NULL)
+        }
+    }
+
+    fn eval_ident(&mut self, name: &str) -> EvalResult {
+        let val = self.env.get(name.to_owned());
+        if let Some(val) = val {
+            Ok(val)
+        } else {
+            Err(RuntimeError::VariableNotFound {
+                name: name.to_owned(),
+            })
         }
     }
 }
@@ -223,7 +250,7 @@ mod tests {
                 let program = parser
                     .parse_program()
                     .expect("Should have no parser errors");
-                let eval = Evaluator::new();
+                let mut eval = Evaluator::new();
 
                 assert_eq!(
                     expect,
@@ -241,7 +268,7 @@ mod tests {
                 let program = parser
                     .parse_program()
                     .expect("Should have no parser errors");
-                let eval = Evaluator::new();
+                let mut eval = Evaluator::new();
 
                 assert_eq!(
                     err,
