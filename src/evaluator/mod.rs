@@ -466,4 +466,27 @@ mod tests {
 
         test_eval!(inputs, expected);
     }
+
+    #[test]
+    fn eval_let_stmt() {
+        let inputs = ["let x = 5; x", "let y = 3", "let x = !true; x"];
+        let expected = [Object::Int(5), NULL, Object::Bool(false)];
+
+        test_eval!(inputs, expected)
+    }
+
+    #[test]
+    fn ident_not_found() {
+        let inputs = ["let x = 5; y", "not_found"];
+        let errs = [
+            RuntimeError::VariableNotFound {
+                name: "y".to_owned(),
+            },
+            RuntimeError::VariableNotFound {
+                name: "not_found".to_owned(),
+            },
+        ];
+
+        rt_err_eval!(inputs, errs);
+    }
 }
