@@ -5,6 +5,7 @@ pub enum Object {
     Int(i64),
     Bool(bool),
     Null,
+    ReturnVal(Box<Object>),
 }
 
 impl fmt::Display for Object {
@@ -12,6 +13,7 @@ impl fmt::Display for Object {
         match self {
             Self::Int(i) => write!(f, "{}", i),
             Self::Bool(b) => write!(f, "{}", b),
+            Self::ReturnVal(obj) => write!(f, "{}", *obj),
             Self::Null => write!(f, "null"),
         }
     }

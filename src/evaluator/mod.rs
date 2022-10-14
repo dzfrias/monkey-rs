@@ -35,13 +35,23 @@ impl Evaluator {
     }
 
     pub fn eval(&self, program: ast::Program) -> EvalResult {
-        self.eval_stmts(program)
+        let mut result = NULL;
+        for stmt in program.0 {
+            result = self.eval_stmt(stmt)?;
+            if let Object::ReturnVal(obj) = result {
+                return Ok(*obj);
+            }
+        }
+        Ok(result)
     }
 
     fn eval_stmts(&self, stmts: ast::Block) -> EvalResult {
         let mut result = NULL;
         for stmt in stmts.0 {
             result = self.eval_stmt(stmt)?;
+            if let Object::ReturnVal(_) = result {
+                return Ok(result);
+            }
         }
         Ok(result)
     }
@@ -49,6 +59,7 @@ impl Evaluator {
     fn eval_stmt(&self, stmt: Stmt) -> EvalResult {
         match stmt {
             Stmt::Expr(expr) => self.eval_expr(expr),
+            Stmt::Return { expr } => Ok(Object::ReturnVal(Box::new(self.eval_expr(expr)?))),
             _ => todo!("evaluating `{:?}`", stmt),
         }
     }
@@ -407,6 +418,24 @@ mod tests {
             "if (false) { 77 }",
         ];
         let expected = [TRUE, Object::Int(4), FALSE, NULL];
+
+        test_eval!(inputs, expected);
+    }
+
+    #[test]
+    fn eval_return() {
+        let inputs = [
+            "return 10; 9",
+            "return 10;",
+            "return 2 * 5;",
+            "if (10 > 1) { if (10 > 1) { return 10; } return 1; }",
+        ];
+        let expected = [
+            Object::Int(10),
+            Object::Int(10),
+            Object::Int(10),
+            Object::Int(10),
+        ];
 
         test_eval!(inputs, expected);
     }
