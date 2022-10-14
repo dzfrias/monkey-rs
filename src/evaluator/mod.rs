@@ -218,6 +218,7 @@ fn is_truthy(obj: Object) -> bool {
         TRUE => true,
         FALSE => false,
         NULL => false,
+        Object::Int(i) if i == 0 => false,
         _ => true,
     }
 }
