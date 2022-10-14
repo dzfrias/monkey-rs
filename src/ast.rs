@@ -48,7 +48,7 @@ pub enum Expr {
     If {
         condition: Box<Expr>,
         consequence: Block,
-        alternative: Block,
+        alternative: Option<Block>,
     },
     /// A function of the form: `fn(<param1>, ..., <paramN>) { <block> }`.
     /// Functions are first class
@@ -74,13 +74,10 @@ impl fmt::Display for Expr {
                 consequence,
                 alternative,
             } => {
-                if alternative.0.is_empty() {
-                    write!(f, "if {condition} {{ {consequence} }}")
+                if let Some(alt) = alternative {
+                    write!(f, "if {condition} {{ {consequence} }} else {{ {alt} }}")
                 } else {
-                    write!(
-                        f,
-                        "if {condition} {{ {consequence} }} else {{ {alternative} }}"
-                    )
+                    write!(f, "if {condition} {{ {consequence} }}")
                 }
             }
             Expr::Function { params, body } => {

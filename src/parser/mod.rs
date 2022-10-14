@@ -298,10 +298,10 @@ impl<'a> Parser<'a> {
             .expect_peek(Token::Rparen)?
             .expect_peek(Token::Lbrace)?
             .parse_block_stmt();
-        let mut alternative = ast::Block(Vec::new());
+        let mut alternative = None;
         if self.peek_tok == Token::Else {
             self.next_token().expect_peek(Token::Lbrace)?;
-            alternative = self.parse_block_stmt();
+            alternative = Some(self.parse_block_stmt());
         }
 
         Some(Expr::If {
@@ -636,8 +636,10 @@ mod tests {
     fn parse_if_expr() {
         let inputs = ["if (x < y) { x }", "if (x < y) { x } else { y }"];
         let expected_alts = [
-            Vec::new(),
-            vec![Stmt::Expr(Expr::Identifier(ast::Identifier::from("y")))],
+            None,
+            Some(ast::Block(vec![Stmt::Expr(Expr::Identifier(
+                ast::Identifier::from("y"),
+            ))])),
         ];
 
         for (input, alt) in inputs.iter().zip(expected_alts) {
@@ -664,7 +666,7 @@ mod tests {
                         vec![Stmt::Expr(Expr::Identifier(ast::Identifier::from("x")))],
                         consequence.0
                     );
-                    assert_eq!(alt, alternative.0);
+                    assert_eq!(&alt, alternative);
                 }
                 _ => panic!("Did not parse an if expression"),
             }
