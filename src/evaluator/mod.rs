@@ -35,8 +35,12 @@ impl Evaluator {
     }
 
     pub fn eval(&self, program: ast::Program) -> EvalResult {
+        self.eval_stmts(program)
+    }
+
+    fn eval_stmts(&self, stmts: ast::Block) -> EvalResult {
         let mut result = NULL;
-        for stmt in program.0 {
+        for stmt in stmts.0 {
             result = self.eval_stmt(stmt)?;
         }
         Ok(result)
@@ -57,6 +61,15 @@ impl Evaluator {
                 self.eval_infix_expr(op, self.eval_expr(*left)?, self.eval_expr(*right)?)
             }
             Expr::Prefix { op, expr } => self.eval_prefix_expr(op, self.eval_expr(*expr)?),
+            Expr::If {
+                condition,
+                consequence,
+                alternative,
+            } => self.eval_if_expr(
+                is_truthy(self.eval_expr(*condition)?),
+                consequence,
+                alternative,
+            ),
             _ => todo!("evaluating `{:?}`", expr),
         }
     }
@@ -144,6 +157,30 @@ impl Evaluator {
             ast::InfixOp::Ge => Ok(bool_to_obj(x >= y)),
             ast::InfixOp::Le => Ok(bool_to_obj(x <= y)),
         }
+    }
+
+    fn eval_if_expr(
+        &self,
+        condition: bool,
+        consequence: ast::Block,
+        alternative: Option<ast::Block>,
+    ) -> EvalResult {
+        if condition {
+            self.eval_stmts(consequence)
+        } else if let Some(alt) = alternative {
+            self.eval_stmts(alt)
+        } else {
+            Ok(NULL)
+        }
+    }
+}
+
+fn is_truthy(obj: Object) -> bool {
+    match obj {
+        TRUE => true,
+        FALSE => false,
+        NULL => false,
+        _ => true,
     }
 }
 
@@ -359,5 +396,18 @@ mod tests {
         ];
 
         rt_err_eval!(inputs, errs);
+    }
+
+    #[test]
+    fn eval_if_expr() {
+        let inputs = [
+            "if (1) { true }",
+            "if (false) { 3 } else { 4 }",
+            "if (true) { false }",
+            "if (false) { 77 }",
+        ];
+        let expected = [TRUE, Object::Int(4), FALSE, NULL];
+
+        test_eval!(inputs, expected);
     }
 }
