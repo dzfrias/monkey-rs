@@ -454,33 +454,6 @@ mod tests {
     }
 
     #[test]
-    fn parse_return_statement() {
-        let input = "
-        return 5;
-        return true;
-        return 993322;
-        ";
-        let expected = [
-            Expr::IntegerLiteral(5),
-            Expr::BooleanLiteral(true),
-            Expr::IntegerLiteral(993322),
-        ];
-        let lexer = Lexer::new(input);
-        let parser = Parser::new(lexer);
-
-        let program = parser.parse_program().expect("Parser errors found");
-        assert_eq!(3, program.0.len());
-
-        for (stmt, expect) in program.0.iter().zip(expected) {
-            if let Stmt::Return { expr } = stmt {
-                assert_eq!(&expect, expr)
-            } else {
-                panic!("Did not parse return statement")
-            }
-        }
-    }
-
-    #[test]
     fn parse_ident_expr() {
         let lexer = Lexer::new("foobar;");
         let parser = Parser::new(lexer);
