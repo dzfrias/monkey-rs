@@ -44,6 +44,8 @@ pub struct Parser<'a> {
 
     current_tok: Token,
     peek_tok: Token,
+
+    in_func: bool,
 }
 
 impl<'a> Parser<'a> {
@@ -63,6 +65,7 @@ impl<'a> Parser<'a> {
             errors: Vec::new(),
             current_tok: Token::EOF,
             peek_tok: Token::EOF,
+            in_func: false,
         };
 
         parser.next_token();
@@ -100,6 +103,10 @@ impl<'a> Parser<'a> {
 
         while self.current_tok != Token::EOF {
             if let Some(stmt) = self.parse_statement() {
+                if matches!(stmt, Stmt::Return { .. }) {
+                    self.push_error("Cannot return outside of a function context");
+                    break;
+                }
                 program.0.push(stmt);
             }
             self.next_token();
@@ -297,11 +304,11 @@ impl<'a> Parser<'a> {
         let consequence = self
             .expect_peek(Token::Rparen)?
             .expect_peek(Token::Lbrace)?
-            .parse_block_stmt();
+            .parse_block_stmt()?;
         let mut alternative = None;
         if self.peek_tok == Token::Else {
             self.next_token().expect_peek(Token::Lbrace)?;
-            alternative = Some(self.parse_block_stmt());
+            alternative = Some(self.parse_block_stmt()?);
         }
 
         Some(Expr::If {
@@ -311,22 +318,28 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn parse_block_stmt(&mut self) -> ast::Block {
+    fn parse_block_stmt(&mut self) -> Option<ast::Block> {
         let mut statements = ast::Block(Vec::new());
         self.next_token();
         while self.current_tok != Token::Rbrace && self.current_tok != Token::EOF {
             let stmt = self.parse_statement();
             if let Some(stmt) = stmt {
+                if matches!(stmt, Stmt::Return { .. }) && !self.in_func {
+                    self.push_error("Cannot return outside of a function context");
+                    return None;
+                }
                 statements.0.push(stmt);
             }
             self.next_token();
         }
-        statements
+        Some(statements)
     }
 
     fn parse_function_expr(&mut self) -> Option<Expr> {
         let params = self.expect_peek(Token::Lparen)?.parse_function_params()?;
-        let body = self.expect_peek(Token::Lbrace)?.parse_block_stmt();
+        self.in_func = true;
+        let body = self.expect_peek(Token::Lbrace)?.parse_block_stmt()?;
+        self.in_func = false;
         Some(Expr::Function { params, body })
     }
 
@@ -754,5 +767,17 @@ mod tests {
             assert_eq!(1, program.0.len());
             assert_eq!(expect, program.0[0].to_string())
         }
+    }
+
+    #[test]
+    fn cannot_top_level_return() {
+        let input = "return 4;";
+        let lexer = Lexer::new(input);
+        let parser = Parser::new(lexer);
+        let res = parser.parse_program();
+        errs_contain(
+            res.unwrap_err(),
+            "Cannot return outside of a function context",
+        );
     }
 }
