@@ -199,6 +199,9 @@ impl<'a> Parser<'a> {
             Token::True | Token::False => self
                 .parse_bool()
                 .expect("Should not happen if current token is True or False"),
+            Token::String(_) => self
+                .parse_string()
+                .expect("Should not happen if current token is a String"),
             Token::Bang | Token::Minus | Token::Plus => self.parse_prefix_expr()?,
             Token::Lparen => self.parse_grouped_expr()?,
             Token::If => self.parse_if_expr()?,
@@ -394,6 +397,13 @@ impl<'a> Parser<'a> {
             func: Box::new(function),
             args,
         })
+    }
+
+    fn parse_string(&mut self) -> Option<Expr> {
+        match &self.current_tok {
+            Token::String(s) => Some(Expr::StringLiteral(s.to_owned())),
+            _ => None,
+        }
     }
 }
 
@@ -752,5 +762,18 @@ mod tests {
             res.unwrap_err(),
             "Cannot return outside of a function context",
         );
+    }
+
+    #[test]
+    fn parse_string_literal() {
+        let input = "\"Hello world\"";
+        let lexer = Lexer::new(input);
+        let parser = Parser::new(lexer);
+        let res = parser.parse_program().expect("Should have no errors");
+        assert_eq!(1, res.0.len());
+        assert_eq!(
+            Stmt::Expr(Expr::StringLiteral("Hello world".to_owned())),
+            res.0[0]
+        )
     }
 }

@@ -95,6 +95,8 @@ impl<'a> Lexer<'a> {
             // Return early to not call read_char another time
             '0'..='9' => return Token::Int(self.read_number()),
 
+            '"' => Token::String(self.read_string()),
+
             _ if self.ch.is_alphabetic() || self.ch == '_' => {
                 let literal = self.read_identifier();
                 return match literal.as_str() {
@@ -147,6 +149,16 @@ impl<'a> Lexer<'a> {
         }
         ident
     }
+
+    fn read_string(&mut self) -> String {
+        let mut string = String::new();
+        self.read_char();
+        while self.ch != '"' && self.ch != '\0' {
+            string.push(self.ch);
+            self.read_char();
+        }
+        string
+    }
 }
 
 #[cfg(test)]
@@ -175,7 +187,11 @@ mod tests {
         }
 
         10 == 10;
-        10 != 9;";
+        10 != 9;
+
+        \"foobar\"
+        \"foo bar\"
+        ";
         let mut lex = Lexer::new(input);
 
         let expected_tokens = [
@@ -252,6 +268,8 @@ mod tests {
             Token::NotEq,
             Token::Int("9".to_owned()),
             Token::Semicolon,
+            Token::String("foobar".to_owned()),
+            Token::String("foo bar".to_owned()),
         ];
 
         for expected in expected_tokens {
@@ -348,5 +366,12 @@ mod tests {
         let mut lexer = Lexer::new(input);
         assert_eq!(Token::Int("1".to_owned()), lexer.next_token());
         assert_eq!(Token::Ident("x".to_owned()), lexer.next_token());
+    }
+
+    #[test]
+    fn next_token_tokenizes_strings() {
+        let input = "\"Hello world\"";
+        let mut lexer = Lexer::new(input);
+        assert_eq!(Token::String("Hello world".to_owned()), lexer.next_token());
     }
 }

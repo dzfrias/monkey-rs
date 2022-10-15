@@ -35,8 +35,12 @@ pub enum Expr {
     IntegerLiteral(i64),
     /// A boolean literal
     BooleanLiteral(bool),
+    StringLiteral(String),
     /// Operators prefixing other expressions, like ! or -
-    Prefix { op: PrefixOp, expr: Box<Expr> },
+    Prefix {
+        op: PrefixOp,
+        expr: Box<Expr>,
+    },
     /// Operators between two expressions, like + or /
     Infix {
         left: Box<Expr>,
@@ -58,7 +62,10 @@ pub enum Expr {
     },
     /// A function call of the form: `<expr>(<arg1>, ..., <argN>) { <block> }`.
     /// The expression can be anything that evaluates to a function.
-    Call { func: Box<Expr>, args: Vec<Expr> },
+    Call {
+        func: Box<Expr>,
+        args: Vec<Expr>,
+    },
 }
 
 impl fmt::Display for Expr {
@@ -67,6 +74,7 @@ impl fmt::Display for Expr {
             Expr::Identifier(Identifier(name)) => write!(f, "{name}"),
             Expr::IntegerLiteral(int) => write!(f, "{int}"),
             Expr::BooleanLiteral(b) => write!(f, "{b}"),
+            Expr::StringLiteral(s) => write!(f, "\"{s}\""),
             Expr::Prefix { op, expr } => write!(f, "({op}{expr})"),
             Expr::Infix { left, op, right } => write!(f, "({left} {op} {right})"),
             Expr::If {

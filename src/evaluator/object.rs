@@ -8,6 +8,7 @@ use std::rc::Rc;
 pub enum Object {
     Int(i64),
     Bool(bool),
+    String(String),
     Null,
     ReturnVal(Box<Object>),
     Function {
@@ -24,6 +25,7 @@ impl fmt::Display for Object {
             Self::Bool(b) => write!(f, "{}", b),
             Self::ReturnVal(obj) => write!(f, "{}", *obj),
             Self::Null => write!(f, "null"),
+            Self::String(s) => write!(f, "{s}"),
             Self::Function { params, body, .. } => {
                 let joined = params
                     .iter()

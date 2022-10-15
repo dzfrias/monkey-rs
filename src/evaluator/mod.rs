@@ -15,8 +15,8 @@ pub enum RuntimeError {
     #[error("cannot perform `{op}` between `{right}` and `{left}`")]
     InvalidInfixOperands {
         op: ast::InfixOp,
-        left: Object,
-        right: Object,
+        left: String,
+        right: String,
     },
     #[error("integer overflow occured in the expression: `{x} {op} {y}`")]
     IntegerOverflow { op: ast::InfixOp, x: i64, y: i64 },
@@ -88,6 +88,7 @@ impl Evaluator {
             Expr::Identifier(ast::Identifier(name)) => self.eval_ident(&name),
             Expr::IntegerLiteral(i) => Ok(Object::Int(i)),
             Expr::BooleanLiteral(b) => Ok(bool_to_obj(b)),
+            Expr::StringLiteral(s) => Ok(Object::String(s)),
             Expr::Infix { left, op, right } => {
                 let left_val = self.eval_expr(*left)?;
                 let right_val = self.eval_expr(*right)?;
@@ -165,14 +166,18 @@ impl Evaluator {
     }
 
     fn eval_infix_expr(&self, op: ast::InfixOp, left: Object, right: Object) -> EvalResult {
-        if let (Object::Int(x), Object::Int(y)) = (&left, &right) {
-            self.eval_int_infix_expr(op, *x, *y)
-        } else {
-            match op {
+        match (&left, &right) {
+            (Object::Int(x), Object::Int(y)) => self.eval_int_infix_expr(op, *x, *y),
+            (Object::String(s1), Object::String(s2)) => self.eval_string_infix_expr(op, s1, s2),
+            _ => match op {
                 ast::InfixOp::Eq => Ok(bool_to_obj(left == right)),
                 ast::InfixOp::NotEq => Ok(bool_to_obj(left != right)),
-                _ => Err(RuntimeError::InvalidInfixOperands { op, left, right }),
-            }
+                _ => Err(RuntimeError::InvalidInfixOperands {
+                    op,
+                    left: left.to_string(),
+                    right: right.to_string(),
+                }),
+            },
         }
     }
 
@@ -261,6 +266,19 @@ impl Evaluator {
             Ok(result)
         } else {
             Err(RuntimeError::NotAFunction(func))
+        }
+    }
+
+    fn eval_string_infix_expr(&self, op: ast::InfixOp, s1: &str, s2: &str) -> EvalResult {
+        match op {
+            ast::InfixOp::Plus => Ok(Object::String(s1.to_owned() + s2)),
+            ast::InfixOp::Eq => Ok(bool_to_obj(s1 == s2)),
+            ast::InfixOp::NotEq => Ok(bool_to_obj(s1 != s2)),
+            _ => Err(RuntimeError::InvalidInfixOperands {
+                op,
+                left: s1.to_owned(),
+                right: s2.to_owned(),
+            }),
         }
     }
 }
@@ -419,23 +437,23 @@ mod tests {
         let errs = [
             RuntimeError::InvalidInfixOperands {
                 op: ast::InfixOp::Plus,
-                left: Object::Int(1),
-                right: TRUE,
+                left: Object::Int(1).to_string(),
+                right: TRUE.to_string(),
             },
             RuntimeError::InvalidInfixOperands {
                 op: ast::InfixOp::Ge,
-                left: TRUE,
-                right: FALSE,
+                left: TRUE.to_string(),
+                right: FALSE.to_string(),
             },
             RuntimeError::InvalidInfixOperands {
                 op: ast::InfixOp::Gt,
-                left: FALSE,
-                right: Object::Int(1),
+                left: FALSE.to_string(),
+                right: Object::Int(1).to_string(),
             },
             RuntimeError::InvalidInfixOperands {
                 op: ast::InfixOp::Slash,
-                left: Object::Int(3),
-                right: TRUE,
+                left: Object::Int(3).to_string(),
+                right: TRUE.to_string(),
             },
         ];
 
@@ -575,5 +593,25 @@ mod tests {
         let expected = [Object::Int(3)];
 
         test_eval!(input, expected);
+    }
+
+    #[test]
+    fn eval_strings() {
+        let input = ["\"Hello World!\""];
+        let expected = [Object::String("Hello World!".to_owned())];
+
+        test_eval!(input, expected);
+    }
+
+    #[test]
+    fn eval_string_infix_ops() {
+        let inputs = [
+            "\"Hi\" == \"Hi\"",
+            "\"Hello\" != \"World\"",
+            "\"Hello \" + \"World\"",
+        ];
+        let expected = [TRUE, TRUE, Object::String("Hello World".to_owned())];
+
+        test_eval!(inputs, expected);
     }
 }

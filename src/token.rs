@@ -10,6 +10,8 @@ pub enum Token {
     Ident(String),
     /// An integer.
     Int(String),
+    /// A string.
+    String(String),
 
     /// An operator token represented by "=".
     Assign,
