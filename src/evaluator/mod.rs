@@ -4,6 +4,8 @@ pub mod object;
 use crate::ast::{self, Expr, Stmt};
 use env::Env;
 use object::Object;
+use std::cell::RefCell;
+use std::rc::Rc;
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq, Eq)]
@@ -22,6 +24,10 @@ pub enum RuntimeError {
     DivisionByZero { op: ast::InfixOp, x: i64, y: i64 },
     #[error("variable not found: `{name}`")]
     VariableNotFound { name: String },
+    #[error("not enough arguments to function call: got `{got}`, want `{expected}`")]
+    NotEnoughArguments { expected: i32, got: i32 },
+    #[error("not a function: {0}")]
+    NotAFunction(Object),
 }
 
 type EvalResult = Result<Object, RuntimeError>;
@@ -32,12 +38,14 @@ const NULL: Object = Object::Null;
 
 #[derive(Debug)]
 pub struct Evaluator {
-    env: Env,
+    env: Rc<RefCell<Env>>,
 }
 
 impl Evaluator {
     pub fn new() -> Self {
-        Self { env: Env::new() }
+        Self {
+            env: Rc::new(RefCell::new(Env::new())),
+        }
     }
 
     pub fn eval(&mut self, program: ast::Program) -> EvalResult {
@@ -69,7 +77,7 @@ impl Evaluator {
             Stmt::Let { ident, expr } => {
                 let name = ident.0;
                 let val = self.eval_expr(expr)?;
-                self.env.set(name, val);
+                self.env.borrow_mut().set(name, val);
                 Ok(NULL)
             }
         }
@@ -97,7 +105,22 @@ impl Evaluator {
                 let truthy = is_truthy(self.eval_expr(*condition)?);
                 self.eval_if_expr(truthy, consequence, alternative)
             }
-            _ => todo!("evaluating `{:?}`", expr),
+            Expr::Function { params, body } => Ok(Object::Function {
+                params,
+                body,
+                env: Rc::clone(&self.env),
+            }),
+            Expr::Call { func, args } => {
+                let function = self.eval_expr(*func)?;
+                let arguments = {
+                    let mut results = Vec::new();
+                    for arg in args {
+                        results.push(self.eval_expr(arg)?);
+                    }
+                    results
+                };
+                self.eval_call_expr(function, arguments)
+            }
         }
     }
 
@@ -202,13 +225,42 @@ impl Evaluator {
     }
 
     fn eval_ident(&mut self, name: &str) -> EvalResult {
-        let val = self.env.get(name.to_owned());
+        let val = self.env.borrow().get(name.to_owned());
         if let Some(val) = val {
             Ok(val)
         } else {
             Err(RuntimeError::VariableNotFound {
                 name: name.to_owned(),
             })
+        }
+    }
+
+    fn eval_call_expr(&mut self, func: Object, args: Vec<Object>) -> EvalResult {
+        if let Object::Function { params, body, env } = func {
+            if params.len() != args.len() {
+                return Err(RuntimeError::NotEnoughArguments {
+                    expected: params.len() as i32,
+                    got: args.len() as i32,
+                });
+            }
+            let outer_env = Rc::clone(&self.env);
+            // Define the environment for the function to be called
+            let func_env = {
+                let mut scope = Env::new_enclosed(Rc::clone(&env));
+                for (arg, param) in args.iter().zip(params) {
+                    scope.set(param.0, arg.clone());
+                }
+                scope
+            };
+
+            // Call the function with the function environment
+            self.env = Rc::new(RefCell::new(func_env));
+            let result = self.eval_stmts(body)?;
+            // Reset back to outer scope
+            self.env = outer_env;
+            Ok(result)
+        } else {
+            Err(RuntimeError::NotAFunction(func))
         }
     }
 }
@@ -489,5 +541,55 @@ mod tests {
         ];
 
         rt_err_eval!(inputs, errs);
+    }
+
+    #[test]
+    fn eval_func_literal() {
+        let input = ["fn(x) { x + 2; };"];
+        let expected = [Object::Function {
+            params: vec![ast::Identifier::from("x")],
+            body: ast::Block(vec![Stmt::Expr(Expr::Infix {
+                left: Box::new(Expr::Identifier(ast::Identifier::from("x"))),
+                op: ast::InfixOp::Plus,
+                right: Box::new(Expr::IntegerLiteral(2)),
+            })]),
+            env: Rc::new(RefCell::new(Env::new())),
+        }];
+
+        test_eval!(input, expected);
+    }
+
+    #[test]
+    fn eval_functions() {
+        let inputs = [
+            "let identity = fn(x) { x }; identity(5)",
+            "let identity = fn(x) { return x; }; identity(5)",
+            "let add = fn(x, y) { x + y }; add(5 + 5, add(5, 5));",
+            "fn(x) { x }(5)",
+        ];
+        let expected = [
+            Object::Int(5),
+            Object::Int(5),
+            Object::Int(20),
+            Object::Int(5),
+        ];
+
+        test_eval!(inputs, expected);
+    }
+
+    #[test]
+    fn function_inner_scope_is_not_global() {
+        let input = ["let func = fn() { let inner = 3; }; func(); inner"];
+        let err = [RuntimeError::VariableNotFound { name: "inner".to_owned() }];
+
+        rt_err_eval!(input, err);
+    }
+
+    #[test]
+    fn function_can_use_outer_scope() {
+        let input = ["let x = 3; let f = fn() { x }; f()"];
+        let expected = [Object::Int(3)];
+
+        test_eval!(input, expected);
     }
 }

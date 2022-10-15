@@ -1,4 +1,8 @@
+use super::env::Env;
+use crate::ast::*;
+use std::cell::RefCell;
 use std::fmt;
+use std::rc::Rc;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Object {
@@ -6,6 +10,11 @@ pub enum Object {
     Bool(bool),
     Null,
     ReturnVal(Box<Object>),
+    Function {
+        params: Vec<Identifier>,
+        body: Block,
+        env: Rc<RefCell<Env>>,
+    },
 }
 
 impl fmt::Display for Object {
@@ -15,6 +24,19 @@ impl fmt::Display for Object {
             Self::Bool(b) => write!(f, "{}", b),
             Self::ReturnVal(obj) => write!(f, "{}", *obj),
             Self::Null => write!(f, "null"),
+            Self::Function { params, body, .. } => {
+                let joined = params
+                    .iter()
+                    .map(|ident| ident.to_string() + ", ")
+                    .collect::<String>();
+                write!(
+                    f,
+                    "fn({}) {{\n {body} \n}}",
+                    joined
+                        .strip_suffix(", ")
+                        .expect("Should always have a trailing ', '")
+                )
+            }
         }
     }
 }

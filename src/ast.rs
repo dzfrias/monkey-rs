@@ -5,7 +5,7 @@ use std::fmt;
 /// A statement represents the possible statement types in the monkey langauge.
 /// There are only three, as monkey uses [expressions](Expr) for most of its
 /// control flow.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Stmt {
     /// A statement of the form: `let <ident> = <expr>;`
     Let { ident: Identifier, expr: Expr },
@@ -27,7 +27,7 @@ impl fmt::Display for Stmt {
 }
 
 /// An expression in the monkey language.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Expr {
     /// An identifier
     Identifier(Identifier),
@@ -145,7 +145,7 @@ impl fmt::Display for PrefixOp {
 }
 
 /// An infix operator that goes between two expressions.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum InfixOp {
     /// Addition operator
     Plus,
@@ -211,7 +211,7 @@ impl fmt::Display for InfixOp {
 }
 
 /// An identifier in the monkey language.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Identifier(pub String);
 
 impl From<&str> for Identifier {
@@ -227,7 +227,7 @@ impl fmt::Display for Identifier {
 }
 
 /// A block representing a series of statements.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Block(pub Vec<Stmt>);
 impl fmt::Display for Block {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
