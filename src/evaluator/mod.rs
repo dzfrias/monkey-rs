@@ -503,24 +503,6 @@ mod tests {
     }
 
     #[test]
-    fn eval_return() {
-        let inputs = [
-            "return 10; 9",
-            "return 10;",
-            "return 2 * 5;",
-            "if (10 > 1) { if (10 > 1) { return 10; } return 1; }",
-        ];
-        let expected = [
-            Object::Int(10),
-            Object::Int(10),
-            Object::Int(10),
-            Object::Int(10),
-        ];
-
-        test_eval!(inputs, expected);
-    }
-
-    #[test]
     fn eval_let_stmt() {
         let inputs = ["let x = 5; x", "let y = 3", "let x = !true; x"];
         let expected = [Object::Int(5), NULL, Object::Bool(false)];
@@ -580,7 +562,9 @@ mod tests {
     #[test]
     fn function_inner_scope_is_not_global() {
         let input = ["let func = fn() { let inner = 3; }; func(); inner"];
-        let err = [RuntimeError::VariableNotFound { name: "inner".to_owned() }];
+        let err = [RuntimeError::VariableNotFound {
+            name: "inner".to_owned(),
+        }];
 
         rt_err_eval!(input, err);
     }
