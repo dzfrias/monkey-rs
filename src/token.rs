@@ -54,6 +54,10 @@ pub enum Token {
     Lbrace,
     /// A token represented by "}".
     Rbrace,
+    /// A token represented by "["
+    Lbracket,
+    /// A token represented by "]"
+    Rbracket,
 
     /// A keyword token represented by "fn".
     Function,

@@ -36,6 +36,7 @@ pub enum Expr {
     /// A boolean literal
     BooleanLiteral(bool),
     StringLiteral(String),
+    ArrayLiteral(Vec<Expr>),
     /// Operators prefixing other expressions, like ! or -
     Prefix {
         op: PrefixOp,
@@ -75,6 +76,17 @@ impl fmt::Display for Expr {
             Expr::IntegerLiteral(int) => write!(f, "{int}"),
             Expr::BooleanLiteral(b) => write!(f, "{b}"),
             Expr::StringLiteral(s) => write!(f, "\"{s}\""),
+            Expr::ArrayLiteral(arr) => {
+                let elems = arr
+                    .iter()
+                    .map(|elem| elem.to_string() + ", ")
+                    .collect::<String>();
+                write!(
+                    f,
+                    "[{}]",
+                    elems.strip_suffix(", ").expect("Should have trailing ', '")
+                )
+            }
             Expr::Prefix { op, expr } => write!(f, "({op}{expr})"),
             Expr::Infix { left, op, right } => write!(f, "({left} {op} {right})"),
             Expr::If {

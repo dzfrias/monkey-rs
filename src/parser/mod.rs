@@ -202,6 +202,7 @@ impl<'a> Parser<'a> {
             Token::String(_) => self
                 .parse_string()
                 .expect("Should not happen if current token is a String"),
+            Token::Lbracket => self.parse_array_literal()?,
             Token::Bang | Token::Minus | Token::Plus => self.parse_prefix_expr()?,
             Token::Lparen => self.parse_grouped_expr()?,
             Token::If => self.parse_if_expr()?,
@@ -378,21 +379,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_call_expr(&mut self, function: Expr) -> Option<Expr> {
-        let args: Vec<Expr> = if self.peek_tok == Token::Rparen {
-            self.next_token();
-            Vec::new()
-        } else {
-            let mut args = Vec::new();
-            self.next_token();
-            args.push(self.parse_expr(Precendence::Lowest)?);
-            while self.peek_tok == Token::Comma {
-                self.next_token().next_token();
-                args.push(self.parse_expr(Precendence::Lowest)?);
-            }
-            self.expect_peek(Token::Rparen)?;
-            args
-        };
-
+        let args: Vec<Expr> = self.parse_expr_list(Token::Rparen)?;
         Some(Expr::Call {
             func: Box::new(function),
             args,
@@ -404,6 +391,28 @@ impl<'a> Parser<'a> {
             Token::String(s) => Some(Expr::StringLiteral(s.to_owned())),
             _ => None,
         }
+    }
+
+    fn parse_array_literal(&mut self) -> Option<Expr> {
+        Some(Expr::ArrayLiteral(self.parse_expr_list(Token::Rbracket)?))
+    }
+
+    fn parse_expr_list(&mut self, end: Token) -> Option<Vec<Expr>> {
+        let mut exprs = Vec::new();
+        if self.peek_tok == end {
+            self.next_token();
+            return Some(exprs);
+        }
+
+        exprs.push(self.next_token().parse_expr(Precendence::Lowest)?);
+
+        while self.peek_tok == Token::Comma {
+            self.next_token().next_token();
+            exprs.push(self.parse_expr(Precendence::Lowest)?);
+        }
+        self.expect_peek(end)?;
+
+        Some(exprs)
     }
 }
 
@@ -773,6 +782,28 @@ mod tests {
         assert_eq!(1, res.0.len());
         assert_eq!(
             Stmt::Expr(Expr::StringLiteral("Hello world".to_owned())),
+            res.0[0]
+        )
+    }
+
+    #[test]
+    fn parse_array_literal() {
+        let input = "[1, 2 * 2, true]";
+        let lexer = Lexer::new(input);
+        let parser = Parser::new(lexer);
+
+        let res = parser.parse_program().expect("Should have no errors");
+        assert_eq!(1, res.0.len());
+        assert_eq!(
+            Stmt::Expr(Expr::ArrayLiteral(vec![
+                Expr::IntegerLiteral(1),
+                Expr::Infix {
+                    left: Box::new(Expr::IntegerLiteral(2)),
+                    op: ast::InfixOp::Asterisk,
+                    right: Box::new(Expr::IntegerLiteral(2))
+                },
+                Expr::BooleanLiteral(true)
+            ])),
             res.0[0]
         )
     }

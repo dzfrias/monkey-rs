@@ -65,6 +65,7 @@ impl Evaluator {
             Expr::IntegerLiteral(i) => Ok(Object::Int(i)),
             Expr::BooleanLiteral(b) => Ok(bool_to_obj(b)),
             Expr::StringLiteral(s) => Ok(Object::String(s)),
+            Expr::ArrayLiteral(_) => todo!(),
             Expr::Infix { left, op, right } => {
                 let left_val = self.eval_expr(*left)?;
                 let right_val = self.eval_expr(*right)?;

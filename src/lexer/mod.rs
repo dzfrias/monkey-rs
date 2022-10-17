@@ -90,6 +90,8 @@ impl<'a> Lexer<'a> {
             '>' => peek_eq!(Ge, Gt),
             '{' => Token::Lbrace,
             '}' => Token::Rbrace,
+            '[' => Token::Lbracket,
+            ']' => Token::Rbracket,
             '\0' => Token::EOF,
 
             // Return early to not call read_char another time
@@ -191,6 +193,8 @@ mod tests {
 
         \"foobar\"
         \"foo bar\"
+
+        [1, 2];
         ";
         let mut lex = Lexer::new(input);
 
@@ -270,6 +274,13 @@ mod tests {
             Token::Semicolon,
             Token::String("foobar".to_owned()),
             Token::String("foo bar".to_owned()),
+            Token::Lbracket,
+            Token::Int("1".to_owned()),
+            Token::Comma,
+            Token::Int("2".to_owned()),
+            Token::Rbracket,
+            Token::Semicolon,
+            Token::EOF,
         ];
 
         for expected in expected_tokens {
