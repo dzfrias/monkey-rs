@@ -1,36 +1,12 @@
+pub mod builtins;
 pub mod env;
 pub mod object;
 
 use crate::ast::{self, Expr, Stmt};
 use env::Env;
-use object::Object;
+use object::*;
 use std::cell::RefCell;
 use std::rc::Rc;
-use thiserror::Error;
-
-#[derive(Error, Debug, PartialEq, Eq)]
-pub enum RuntimeError {
-    #[error("cannot perform `{op}` on `{right}`")]
-    InvalidPrefixOperand { op: ast::PrefixOp, right: Object },
-    #[error("cannot perform `{op}` between `{right}` and `{left}`")]
-    InvalidInfixOperands {
-        op: ast::InfixOp,
-        left: String,
-        right: String,
-    },
-    #[error("integer overflow occured in the expression: `{x} {op} {y}`")]
-    IntegerOverflow { op: ast::InfixOp, x: i64, y: i64 },
-    #[error("division by zero occured in the expression: `{x} {op} {y}`")]
-    DivisionByZero { op: ast::InfixOp, x: i64, y: i64 },
-    #[error("variable not found: `{name}`")]
-    VariableNotFound { name: String },
-    #[error("not enough arguments to function call: got `{got}`, want `{expected}`")]
-    NotEnoughArguments { expected: i32, got: i32 },
-    #[error("not a function: {0}")]
-    NotAFunction(Object),
-}
-
-type EvalResult = Result<Object, RuntimeError>;
 
 const TRUE: Object = Object::Bool(true);
 const FALSE: Object = Object::Bool(false);
@@ -233,6 +209,8 @@ impl Evaluator {
         let val = self.env.borrow().get(name.to_owned());
         if let Some(val) = val {
             Ok(val)
+        } else if let Some(builtin) = builtins::get_builtin(name) {
+            Ok(builtin)
         } else {
             Err(RuntimeError::VariableNotFound {
                 name: name.to_owned(),
@@ -241,31 +219,33 @@ impl Evaluator {
     }
 
     fn eval_call_expr(&mut self, func: Object, args: Vec<Object>) -> EvalResult {
-        if let Object::Function { params, body, env } = func {
-            if params.len() != args.len() {
-                return Err(RuntimeError::NotEnoughArguments {
-                    expected: params.len() as i32,
-                    got: args.len() as i32,
-                });
-            }
-            let outer_env = Rc::clone(&self.env);
-            // Define the environment for the function to be called
-            let func_env = {
-                let mut scope = Env::new_enclosed(Rc::clone(&env));
-                for (arg, param) in args.iter().zip(params) {
-                    scope.set(param.0, arg.clone());
+        match func {
+            Object::Function { params, body, env } => {
+                if params.len() != args.len() {
+                    return Err(RuntimeError::NotEnoughArguments {
+                        expected: params.len() as i32,
+                        got: args.len() as i32,
+                    });
                 }
-                scope
-            };
+                let outer_env = Rc::clone(&self.env);
+                // Define the environment for the function to be called
+                let func_env = {
+                    let mut scope = Env::new_enclosed(Rc::clone(&env));
+                    for (arg, param) in args.iter().zip(params) {
+                        scope.set(param.0, arg.clone());
+                    }
+                    scope
+                };
 
-            // Call the function with the function environment
-            self.env = Rc::new(RefCell::new(func_env));
-            let result = self.eval_stmts(body)?;
-            // Reset back to outer scope
-            self.env = outer_env;
-            Ok(result)
-        } else {
-            Err(RuntimeError::NotAFunction(func))
+                // Call the function with the function environment
+                self.env = Rc::new(RefCell::new(func_env));
+                let result = self.eval_stmts(body)?;
+                // Reset back to outer scope
+                self.env = outer_env;
+                Ok(result)
+            }
+            Object::Builtin { function } => function(args),
+            _ => Err(RuntimeError::NotAFunction(func)),
         }
     }
 
@@ -613,5 +593,30 @@ mod tests {
         let expected = [TRUE, TRUE, Object::String("Hello World".to_owned())];
 
         test_eval!(inputs, expected);
+    }
+
+    #[test]
+    fn eval_len_builtin_function() {
+        let inputs = ["len(\"hello world\")", "len(\"four\")"];
+        let expected = [Object::Int(11), Object::Int(4)];
+
+        test_eval!(inputs, expected);
+    }
+
+    #[test]
+    fn len_errors_with_wrong_args() {
+        let inputs = ["len(3)", "len(\"hi\", \"hello world\")"];
+        let errs = [
+            RuntimeError::WrongArgType {
+                got: "3".to_owned(),
+                want: "String".to_owned(),
+            },
+            RuntimeError::NotEnoughArguments {
+                expected: 1,
+                got: 2,
+            },
+        ];
+
+        rt_err_eval!(inputs, errs);
     }
 }
