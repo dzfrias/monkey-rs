@@ -270,6 +270,7 @@ fn is_truthy(obj: Object) -> bool {
         FALSE => false,
         NULL => false,
         Object::Int(i) if i == 0 => false,
+        Object::String(s) if s.len() == 0 => false,
         _ => true,
     }
 }
