@@ -13,6 +13,7 @@ enum Precendence {
     Product,
     Prefix,
     Call,
+    Index,
 }
 
 impl From<&Token> for Precendence {
@@ -23,6 +24,7 @@ impl From<&Token> for Precendence {
             Token::Plus | Token::Minus => Precendence::Sum,
             Token::Slash | Token::Asterisk | Token::Percent => Precendence::Product,
             Token::Lparen => Precendence::Call,
+            Token::Lbracket => Precendence::Index,
             _ => Precendence::Lowest,
         }
     }
@@ -228,6 +230,7 @@ impl<'a> Parser<'a> {
                 | Token::Ge
                 | Token::Le
                 | Token::Percent => self.next_token().parse_infix_expr(left_exp)?,
+                Token::Lbracket => self.next_token().parse_index_expr(left_exp)?,
                 Token::Lparen => self.next_token().parse_call_expr(left_exp)?,
                 _ => return Some(left_exp),
             };
@@ -413,6 +416,15 @@ impl<'a> Parser<'a> {
         self.expect_peek(end)?;
 
         Some(exprs)
+    }
+
+    fn parse_index_expr(&mut self, left: Expr) -> Option<Expr> {
+        let index = self.next_token().parse_expr(Precendence::Lowest)?;
+        self.expect_peek(Token::Rbracket)?;
+        Some(Expr::Index {
+            expr: Box::new(left),
+            index: Box::new(index),
+        })
     }
 }
 
@@ -744,11 +756,13 @@ mod tests {
             "a + add(b * c) + d",
             "add(a + b + c * d / f + g)",
             "add(a, b, 1, 2 * 3, 4 + 5, add(6, 7 * 8))",
+            "a * [1, 2, 3, 4][b * c] * d",
         ];
         let expected = [
             "((a + add((b * c))) + d);",
             "add((((a + b) + ((c * d) / f)) + g));",
             "add(a, b, 1, (2 * 3), (4 + 5), add(6, (7 * 8)));",
+            "((a * ([1, 2, 3, 4][(b * c)])) * d);",
         ];
 
         for (input, expect) in inputs.iter().zip(expected) {
@@ -804,6 +818,27 @@ mod tests {
                 },
                 Expr::BooleanLiteral(true)
             ])),
+            res.0[0]
+        )
+    }
+
+    #[test]
+    fn parse_index_expr() {
+        let input = "arr[1 + 1]";
+        let lexer = Lexer::new(input);
+        let parser = Parser::new(lexer);
+
+        let res = parser.parse_program().expect("Should have no errors");
+        assert_eq!(1, res.0.len());
+        assert_eq!(
+            Stmt::Expr(Expr::Index {
+                expr: Box::new(Expr::Identifier(ast::Identifier::from("arr"))),
+                index: Box::new(Expr::Infix {
+                    left: Box::new(Expr::IntegerLiteral(1)),
+                    op: ast::InfixOp::Plus,
+                    right: Box::new(Expr::IntegerLiteral(1))
+                })
+            }),
             res.0[0]
         )
     }

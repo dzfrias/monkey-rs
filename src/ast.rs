@@ -67,6 +67,10 @@ pub enum Expr {
         func: Box<Expr>,
         args: Vec<Expr>,
     },
+    Index {
+        expr: Box<Expr>,
+        index: Box<Expr>,
+    },
 }
 
 impl fmt::Display for Expr {
@@ -125,6 +129,9 @@ impl fmt::Display for Expr {
                         .strip_suffix(", ")
                         .expect("Should always have a trailing ', '")
                 )
+            }
+            Expr::Index { expr, index } => {
+                write!(f, "({}[{}])", expr, index)
             }
         }
     }
