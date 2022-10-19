@@ -12,6 +12,7 @@ pub enum Object {
     Int(i64),
     Bool(bool),
     String(String),
+    Array(Vec<Object>),
     Null,
     ReturnVal(Box<Object>),
     Function {
@@ -46,6 +47,19 @@ impl fmt::Display for Object {
                 )
             }
             Self::Builtin { .. } => write!(f, "[builtin function]"),
+            Self::Array(arr) => {
+                let joined = arr
+                    .iter()
+                    .map(|elem| elem.to_string() + ", ")
+                    .collect::<String>();
+                write!(
+                    f,
+                    "[{}]",
+                    joined
+                        .strip_suffix(", ")
+                        .expect("Should always have trailing ', '")
+                )
+            }
         }
     }
 }

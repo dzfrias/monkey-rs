@@ -65,7 +65,10 @@ impl Evaluator {
             Expr::IntegerLiteral(i) => Ok(Object::Int(i)),
             Expr::BooleanLiteral(b) => Ok(bool_to_obj(b)),
             Expr::StringLiteral(s) => Ok(Object::String(s)),
-            Expr::ArrayLiteral(_) => todo!(),
+            Expr::ArrayLiteral(elems) => {
+                let objs = self.eval_expressions(elems)?;
+                Ok(Object::Array(objs))
+            }
             Expr::Index { .. } => todo!(),
             Expr::Infix { left, op, right } => {
                 let left_val = self.eval_expr(*left)?;
@@ -91,13 +94,7 @@ impl Evaluator {
             }),
             Expr::Call { func, args } => {
                 let function = self.eval_expr(*func)?;
-                let arguments = {
-                    let mut results = Vec::new();
-                    for arg in args {
-                        results.push(self.eval_expr(arg)?);
-                    }
-                    results
-                };
+                let arguments = self.eval_expressions(args)?;
                 self.eval_call_expr(function, arguments)
             }
         }
@@ -218,6 +215,14 @@ impl Evaluator {
                 name: name.to_owned(),
             })
         }
+    }
+
+    fn eval_expressions(&mut self, exprs: Vec<Expr>) -> Result<Vec<Object>, RuntimeError> {
+        let mut results = Vec::new();
+        for expr in exprs {
+            results.push(self.eval_expr(expr)?);
+        }
+        Ok(results)
     }
 
     fn eval_call_expr(&mut self, func: Object, args: Vec<Object>) -> EvalResult {
@@ -621,5 +626,16 @@ mod tests {
         ];
 
         rt_err_eval!(inputs, errs);
+    }
+
+    #[test]
+    fn eval_array_literal() {
+        let inputs = ["[1, 2, 3]", "[1 + 1, 2 * 2, true]"];
+        let expected = [
+            Object::Array(vec![Object::Int(1), Object::Int(2), Object::Int(3)]),
+            Object::Array(vec![Object::Int(2), Object::Int(4), Object::Bool(true)]),
+        ];
+
+        test_eval!(inputs, expected)
     }
 }
