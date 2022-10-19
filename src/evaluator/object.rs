@@ -86,6 +86,10 @@ pub enum RuntimeError {
     NotAFunction(Object),
     #[error("wrong argument type: got `{got}` want `{want}`")]
     WrongArgType { got: String, want: String },
+    #[error("index operator not supported between `{left}` and `{index}`")]
+    IndexOperatorNotSupported { left: String, index: String },
+    #[error("invalid index: {idx}")]
+    InvalidIndex { idx: i64 },
 }
 
 pub type EvalResult = Result<Object, RuntimeError>;

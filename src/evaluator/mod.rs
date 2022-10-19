@@ -6,6 +6,7 @@ use crate::ast::{self, Expr, Stmt};
 use env::Env;
 use object::*;
 use std::cell::RefCell;
+use std::convert::TryFrom;
 use std::rc::Rc;
 
 const TRUE: Object = Object::Bool(true);
@@ -69,7 +70,11 @@ impl Evaluator {
                 let objs = self.eval_expressions(elems)?;
                 Ok(Object::Array(objs))
             }
-            Expr::Index { .. } => todo!(),
+            Expr::Index { expr, index } => {
+                let left = self.eval_expr(*expr)?;
+                let index = self.eval_expr(*index)?;
+                self.eval_index_expr(left, index)
+            }
             Expr::Infix { left, op, right } => {
                 let left_val = self.eval_expr(*left)?;
                 let right_val = self.eval_expr(*right)?;
@@ -265,6 +270,30 @@ impl Evaluator {
                 op,
                 left: s1.to_owned(),
                 right: s2.to_owned(),
+            }),
+        }
+    }
+
+    fn eval_index_expr(&self, left: Object, index: Object) -> EvalResult {
+        match (&left, &index) {
+            (Object::Array(arr), Object::Int(i)) => {
+                if *i < 0 {
+                    return Ok(NULL);
+                }
+                let idx_res = usize::try_from(*i);
+                if idx_res.is_err() {
+                    return Err(RuntimeError::InvalidIndex { idx: *i });
+                }
+                let idx = idx_res.unwrap();
+                if idx > arr.len() - 1 {
+                    Ok(NULL)
+                } else {
+                    Ok(arr[idx].clone())
+                }
+            }
+            _ => Err(RuntimeError::IndexOperatorNotSupported {
+                left: left.to_string(),
+                index: index.to_string(),
             }),
         }
     }
@@ -637,5 +666,19 @@ mod tests {
         ];
 
         test_eval!(inputs, expected)
+    }
+
+    #[test]
+    fn eval_array_index_expr() {
+        let inputs = [
+            "[1, 2, 3][0]",
+            "let i = 0; [1, 2][i + 1]",
+            "let arr = [1, 2, 3]; arr[2]",
+            "[1, 2, 3][3]",
+            "[1, 2, 3][-1]",
+        ];
+        let expected = [Object::Int(1), Object::Int(2), Object::Int(3), NULL, NULL];
+
+        test_eval!(inputs, expected);
     }
 }
