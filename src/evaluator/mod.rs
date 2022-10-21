@@ -641,7 +641,7 @@ mod tests {
         let errs = [
             RuntimeError::WrongArgType {
                 got: "3".to_owned(),
-                want: "String".to_owned(),
+                want: "String | Array".to_owned(),
             },
             RuntimeError::NotEnoughArguments {
                 expected: 1,
