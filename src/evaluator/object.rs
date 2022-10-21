@@ -1,13 +1,18 @@
 use super::env::Env;
 use crate::ast::*;
 use std::cell::RefCell;
+use std::collections::HashSet;
 use std::fmt;
 use std::rc::Rc;
 use thiserror::Error;
 
 macro_rules! type_signature {
     ($($t:ident),+) => {
-        TypeSignature(vec![$(Type::$t),*])
+        {
+            let mut hash_set = std::collections::HashSet::new();
+            $(hash_set.insert(Type::$t);)*
+            TypeSignature(hash_set)
+        }
     };
 }
 pub(crate) use type_signature;
@@ -90,7 +95,7 @@ impl fmt::Display for Object {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum Type {
     Int,
     Bool,
@@ -115,8 +120,8 @@ impl fmt::Display for Type {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct TypeSignature(pub Vec<Type>);
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TypeSignature(pub HashSet<Type>);
 
 impl fmt::Display for TypeSignature {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
