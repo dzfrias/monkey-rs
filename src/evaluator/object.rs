@@ -5,6 +5,13 @@ use std::fmt;
 use std::rc::Rc;
 use thiserror::Error;
 
+macro_rules! type_signature {
+    ($($t:ident),+) => {
+        TypeSignature(vec![$(Type::$t),*])
+    };
+}
+pub(crate) use type_signature;
+
 pub const TRUE: Object = Object::Bool(true);
 pub const FALSE: Object = Object::Bool(false);
 pub const NULL: Object = Object::Null;
@@ -27,6 +34,21 @@ pub enum Object {
     Builtin {
         function: BuiltinFunc,
     },
+}
+
+impl Object {
+    pub fn monkey_type(&self) -> Type {
+        match self {
+            Self::Int(_) => Type::Int,
+            Self::Bool(_) => Type::Bool,
+            Self::String(_) => Type::String,
+            Self::Array(_) => Type::Array,
+            Self::Null => Type::Null,
+            Self::Function { .. } => Type::Function,
+            Self::Builtin { .. } => Type::Builtin,
+            Self::ReturnVal(val) => val.monkey_type(),
+        }
+    }
 }
 
 impl fmt::Display for Object {
@@ -68,15 +90,60 @@ impl fmt::Display for Object {
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub enum Type {
+    Int,
+    Bool,
+    String,
+    Array,
+    Null,
+    Function,
+    Builtin,
+}
+
+impl fmt::Display for Type {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Int => write!(f, "Int"),
+            Self::Bool => write!(f, "Bool"),
+            Self::String => write!(f, "String"),
+            Self::Array => write!(f, "Array"),
+            Self::Null => write!(f, "<null>"),
+            Self::Function => write!(f, "Function"),
+            Self::Builtin => write!(f, "[builtin]"),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct TypeSignature(pub Vec<Type>);
+
+impl fmt::Display for TypeSignature {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let joined = self
+            .0
+            .iter()
+            .map(|elem| elem.to_string() + " | ")
+            .collect::<String>();
+        write!(
+            f,
+            "{}",
+            joined
+                .strip_suffix(" | ")
+                .expect("Should always have trailing ' | '")
+        )
+    }
+}
+
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum RuntimeError {
     #[error("cannot perform `{op}` on `{right}`")]
-    InvalidPrefixOperand { op: PrefixOp, right: Object },
+    InvalidPrefixOperand { op: PrefixOp, right: Type },
     #[error("cannot perform `{op}` between `{right}` and `{left}`")]
     InvalidInfixOperands {
         op: InfixOp,
-        left: String,
-        right: String,
+        left: Type,
+        right: Type,
     },
     #[error("integer overflow occured in the expression: `{x} {op} {y}`")]
     IntegerOverflow { op: InfixOp, x: i64, y: i64 },
@@ -89,9 +156,9 @@ pub enum RuntimeError {
     #[error("not a function: {0}")]
     NotAFunction(Object),
     #[error("wrong argument type: got `{got}` want `{want}`")]
-    WrongArgType { got: String, want: String },
+    WrongArgType { got: Type, want: TypeSignature },
     #[error("index operator not supported between `{left}` and `{index}`")]
-    IndexOperatorNotSupported { left: String, index: String },
+    IndexOperatorNotSupported { left: Type, index: Type },
     #[error("invalid index: {idx}")]
     InvalidIndex { idx: i64 },
 }

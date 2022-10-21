@@ -38,8 +38,8 @@ fn monkey_len(args: Vec<Object>) -> EvalResult {
         Object::String(s) => Ok(Object::Int(s.len() as i64)),
         Object::Array(arr) => Ok(Object::Int(arr.len() as i64)),
         _ => Err(RuntimeError::WrongArgType {
-            got: args[0].to_string(),
-            want: "String | Array".to_owned(),
+            got: args[0].monkey_type(),
+            want: type_signature!(Array, String),
         }),
     }
 }
@@ -53,8 +53,8 @@ fn monkey_first(args: Vec<Object>) -> EvalResult {
             None => Ok(Object::Null),
         },
         _ => Err(RuntimeError::WrongArgType {
-            got: args[0].to_string(),
-            want: "Array | String".to_owned(),
+            got: args[0].monkey_type(),
+            want: type_signature!(Array, String),
         }),
     }
 }
@@ -68,8 +68,8 @@ fn monkey_last(args: Vec<Object>) -> EvalResult {
             None => Ok(Object::Null),
         },
         _ => Err(RuntimeError::WrongArgType {
-            got: args[0].to_string(),
-            want: "Array | String".to_owned(),
+            got: args[0].monkey_type(),
+            want: type_signature!(Array, String),
         }),
     }
 }
@@ -80,8 +80,8 @@ fn monkey_rest(args: Vec<Object>) -> EvalResult {
         Object::Array(arr) => Ok(Object::Array(arr[1..].to_vec())),
         Object::String(s) => Ok(Object::String(s[1..].to_owned())),
         _ => Err(RuntimeError::WrongArgType {
-            got: args[0].to_string(),
-            want: "Array | String".to_owned(),
+            got: args[0].monkey_type(),
+            want: type_signature!(Array, String),
         }),
     }
 }
@@ -95,8 +95,8 @@ fn monkey_push(args: Vec<Object>) -> EvalResult {
             Ok(Object::Array(new))
         }
         _ => Err(RuntimeError::WrongArgType {
-            got: args[0].to_string(),
-            want: "Array".to_owned(),
+            got: args[0].monkey_type(),
+            want: type_signature!(Array),
         }),
     }
 }

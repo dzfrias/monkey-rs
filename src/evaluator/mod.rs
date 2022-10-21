@@ -116,7 +116,7 @@ impl Evaluator {
             NULL => Ok(TRUE),
             _ => Err(RuntimeError::InvalidPrefixOperand {
                 op: ast::PrefixOp::Bang,
-                right,
+                right: right.monkey_type(),
             }),
         }
     }
@@ -126,7 +126,7 @@ impl Evaluator {
             Object::Int(i) => Ok(Object::Int(-i)),
             _ => Err(RuntimeError::InvalidPrefixOperand {
                 op: ast::PrefixOp::Minus,
-                right,
+                right: right.monkey_type(),
             }),
         }
     }
@@ -136,7 +136,7 @@ impl Evaluator {
             Object::Int(_) => Ok(right),
             _ => Err(RuntimeError::InvalidPrefixOperand {
                 op: ast::PrefixOp::Plus,
-                right,
+                right: right.monkey_type(),
             }),
         }
     }
@@ -150,8 +150,8 @@ impl Evaluator {
                 ast::InfixOp::NotEq => Ok(bool_to_obj(left != right)),
                 _ => Err(RuntimeError::InvalidInfixOperands {
                     op,
-                    left: left.to_string(),
-                    right: right.to_string(),
+                    left: left.monkey_type(),
+                    right: right.monkey_type(),
                 }),
             },
         }
@@ -264,8 +264,8 @@ impl Evaluator {
             ast::InfixOp::NotEq => Ok(bool_to_obj(s1 != s2)),
             _ => Err(RuntimeError::InvalidInfixOperands {
                 op,
-                left: s1.to_owned(),
-                right: s2.to_owned(),
+                left: Type::String,
+                right: Type::String,
             }),
         }
     }
@@ -287,8 +287,8 @@ impl Evaluator {
                 }
             }
             _ => Err(RuntimeError::IndexOperatorNotSupported {
-                left: left.to_string(),
-                index: index.to_string(),
+                left: left.monkey_type(),
+                index: index.monkey_type(),
             }),
         }
     }
@@ -428,15 +428,15 @@ mod tests {
         let errs = [
             RuntimeError::InvalidPrefixOperand {
                 op: ast::PrefixOp::Plus,
-                right: TRUE,
+                right: Type::Bool,
             },
             RuntimeError::InvalidPrefixOperand {
                 op: ast::PrefixOp::Minus,
-                right: FALSE,
+                right: Type::Bool,
             },
             RuntimeError::InvalidPrefixOperand {
                 op: ast::PrefixOp::Bang,
-                right: Object::Int(5),
+                right: Type::Int,
             },
         ];
 
@@ -449,23 +449,23 @@ mod tests {
         let errs = [
             RuntimeError::InvalidInfixOperands {
                 op: ast::InfixOp::Plus,
-                left: Object::Int(1).to_string(),
-                right: TRUE.to_string(),
+                left: Type::Int,
+                right: Type::Bool,
             },
             RuntimeError::InvalidInfixOperands {
                 op: ast::InfixOp::Ge,
-                left: TRUE.to_string(),
-                right: FALSE.to_string(),
+                left: Type::Bool,
+                right: Type::Bool,
             },
             RuntimeError::InvalidInfixOperands {
                 op: ast::InfixOp::Gt,
-                left: FALSE.to_string(),
-                right: Object::Int(1).to_string(),
+                left: Type::Bool,
+                right: Type::Int,
             },
             RuntimeError::InvalidInfixOperands {
                 op: ast::InfixOp::Slash,
-                left: Object::Int(3).to_string(),
-                right: TRUE.to_string(),
+                left: Type::Int,
+                right: Type::Bool,
             },
         ];
 
@@ -640,8 +640,8 @@ mod tests {
         let inputs = ["len(3)", "len(\"hi\", \"hello world\")"];
         let errs = [
             RuntimeError::WrongArgType {
-                got: "3".to_owned(),
-                want: "String | Array".to_owned(),
+                got: Type::Int,
+                want: type_signature!(String, Array),
             },
             RuntimeError::NotEnoughArguments {
                 expected: 1,
