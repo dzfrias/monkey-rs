@@ -9,10 +9,6 @@ use std::cell::RefCell;
 use std::convert::TryFrom;
 use std::rc::Rc;
 
-const TRUE: Object = Object::Bool(true);
-const FALSE: Object = Object::Bool(false);
-const NULL: Object = Object::Null;
-
 #[derive(Debug)]
 pub struct Evaluator {
     env: Rc<RefCell<Env>>,
@@ -280,11 +276,10 @@ impl Evaluator {
                 if *i < 0 {
                     return Ok(NULL);
                 }
-                let idx_res = usize::try_from(*i);
-                if idx_res.is_err() {
-                    return Err(RuntimeError::InvalidIndex { idx: *i });
-                }
-                let idx = idx_res.unwrap();
+                let idx = match usize::try_from(*i) {
+                    Ok(i) => i,
+                    Err(_) => return Err(RuntimeError::InvalidIndex { idx: *i }),
+                };
                 if idx > arr.len() - 1 {
                     Ok(NULL)
                 } else {

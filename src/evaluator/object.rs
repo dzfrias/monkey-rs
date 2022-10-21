@@ -5,6 +5,10 @@ use std::fmt;
 use std::rc::Rc;
 use thiserror::Error;
 
+pub const TRUE: Object = Object::Bool(true);
+pub const FALSE: Object = Object::Bool(false);
+pub const NULL: Object = Object::Null;
+
 pub type BuiltinFunc = fn(Vec<Object>) -> EvalResult;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
