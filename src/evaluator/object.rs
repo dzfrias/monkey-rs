@@ -7,7 +7,7 @@ use std::rc::Rc;
 use thiserror::Error;
 
 macro_rules! type_signature {
-    ($($t:ident),+) => {
+    ($($t:ident)|+) => {
         {
             let mut hash_set = std::collections::HashSet::new();
             $(hash_set.insert(Type::$t);)*

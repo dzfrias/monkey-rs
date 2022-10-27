@@ -641,7 +641,7 @@ mod tests {
         let errs = [
             RuntimeError::WrongArgType {
                 got: Type::Int,
-                want: type_signature!(Array, String),
+                want: type_signature!(Array | String),
             },
             RuntimeError::NotEnoughArguments {
                 expected: 1,
