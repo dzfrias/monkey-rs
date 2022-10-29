@@ -17,6 +17,9 @@ pub fn get_builtin(name: &str) -> Option<Object> {
         "push" => Some(Object::Builtin {
             function: monkey_push,
         }),
+        "puts" => Some(Object::Builtin {
+            function: monkey_puts,
+        }),
         _ => None,
     }
 }
@@ -99,4 +102,11 @@ fn monkey_push(args: Vec<Object>) -> EvalResult {
             want: type_signature!(Array),
         }),
     }
+}
+
+fn monkey_puts(args: Vec<Object>) -> EvalResult {
+    for arg in args {
+        println!("{arg}");
+    }
+    Ok(NULL)
 }
