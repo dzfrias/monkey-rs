@@ -45,6 +45,7 @@ pub enum Token {
     Comma,
     /// A token represented by ";".
     Semicolon,
+    Colon,
 
     /// A token represented by "(".
     Lparen,

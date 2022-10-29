@@ -1,8 +1,9 @@
 use super::env::Env;
 use crate::ast::*;
 use std::cell::RefCell;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
+use std::hash::Hash;
 use std::rc::Rc;
 use thiserror::Error;
 
@@ -29,6 +30,7 @@ pub enum Object {
     Bool(bool),
     String(String),
     Array(Vec<Object>),
+    HashMap(HashMap<Object, Object>),
     Null,
     ReturnVal(Box<Object>),
     Function {
@@ -48,6 +50,7 @@ impl Object {
             Self::Bool(_) => Type::Bool,
             Self::String(_) => Type::String,
             Self::Array(_) => Type::Array,
+            Self::HashMap(_) => Type::HashMap,
             Self::Null => Type::Null,
             Self::Function { .. } => Type::Function,
             Self::Builtin { .. } => Type::Builtin,
@@ -91,6 +94,24 @@ impl fmt::Display for Object {
                         .expect("Should always have trailing ', '")
                 )
             }
+            Self::HashMap(hashmap) => {
+                let pairs = hashmap
+                    .iter()
+                    .map(|(key, val)| key.to_string() + ": " + &val.to_string())
+                    .collect::<Vec<String>>();
+                write!(f, "{{{}}}", pairs.join(", "))
+            }
+        }
+    }
+}
+
+impl Hash for Object {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        match self {
+            Self::Int(i) => i.hash(state),
+            Self::Bool(b) => b.hash(state),
+            Self::String(s) => s.hash(state),
+            _ => "".hash(state),
         }
     }
 }
@@ -101,6 +122,7 @@ pub enum Type {
     Bool,
     String,
     Array,
+    HashMap,
     Null,
     Function,
     Builtin,
@@ -113,6 +135,7 @@ impl fmt::Display for Type {
             Self::Bool => write!(f, "Bool"),
             Self::String => write!(f, "String"),
             Self::Array => write!(f, "Array"),
+            Self::HashMap => write!(f, "Hashmap"),
             Self::Null => write!(f, "<null>"),
             Self::Function => write!(f, "Function"),
             Self::Builtin => write!(f, "[builtin]"),

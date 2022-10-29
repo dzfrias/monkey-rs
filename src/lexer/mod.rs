@@ -80,6 +80,7 @@ impl<'a> Lexer<'a> {
             '(' => Token::Lparen,
             ')' => Token::Rparen,
             ',' => Token::Comma,
+            ':' => Token::Colon,
             '+' => Token::Plus,
             '-' => Token::Minus,
             '!' => peek_eq!(NotEq, Bang),
@@ -195,6 +196,7 @@ mod tests {
         \"foo bar\"
 
         [1, 2];
+        {\"foo\": \"bar\"}
         ";
         let mut lex = Lexer::new(input);
 
@@ -280,6 +282,11 @@ mod tests {
             Token::Int("2".to_owned()),
             Token::Rbracket,
             Token::Semicolon,
+            Token::Lbrace,
+            Token::String("foo".to_owned()),
+            Token::Colon,
+            Token::String("bar".to_owned()),
+            Token::Rbrace,
             Token::EOF,
         ];
 

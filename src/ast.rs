@@ -37,6 +37,7 @@ pub enum Expr {
     BooleanLiteral(bool),
     StringLiteral(String),
     ArrayLiteral(Vec<Expr>),
+    HashLiteral(Vec<(Expr, Expr)>),
     /// Operators prefixing other expressions, like ! or -
     Prefix {
         op: PrefixOp,
@@ -90,6 +91,13 @@ impl fmt::Display for Expr {
                     "[{}]",
                     elems.strip_suffix(", ").expect("Should have trailing ', '")
                 )
+            }
+            Expr::HashLiteral(hashmap) => {
+                let elems = hashmap
+                    .iter()
+                    .map(|elem| elem.0.to_string() + ": " + &elem.1.to_string())
+                    .collect::<Vec<_>>();
+                write!(f, "{{{}}}", elems.join(", "))
             }
             Expr::Prefix { op, expr } => write!(f, "({op}{expr})"),
             Expr::Infix { left, op, right } => write!(f, "({left} {op} {right})"),

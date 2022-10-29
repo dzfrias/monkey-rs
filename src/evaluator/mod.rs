@@ -6,6 +6,7 @@ use crate::ast::{self, Expr, Stmt};
 use env::Env;
 use object::*;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::rc::Rc;
 
@@ -66,6 +67,7 @@ impl Evaluator {
                 let objs = self.eval_expressions(elems)?;
                 Ok(Object::Array(objs))
             }
+            Expr::HashLiteral(hash) => Ok(self.eval_hash_literal(hash)?),
             Expr::Index { expr, index } => {
                 let left = self.eval_expr(*expr)?;
                 let index = self.eval_expr(*index)?;
@@ -276,21 +278,37 @@ impl Evaluator {
                 if *i < 0 {
                     return Ok(NULL);
                 }
-                let idx = match usize::try_from(*i) {
-                    Ok(i) => i,
-                    Err(_) => return Err(RuntimeError::InvalidIndex { idx: *i }),
-                };
+                let idx =
+                    usize::try_from(*i).map_err(|_| RuntimeError::InvalidIndex { idx: *i })?;
                 if idx > arr.len() - 1 {
                     Ok(NULL)
                 } else {
                     Ok(arr[idx].clone())
                 }
             }
+            (Object::HashMap(hashmap), _) => match index {
+                Object::Int(_) | Object::Bool(_) | Object::String(_) => match hashmap.get(&index) {
+                    Some(obj) => Ok(obj.clone()),
+                    None => Ok(NULL),
+                },
+                _ => Err(RuntimeError::IndexOperatorNotSupported {
+                    left: Type::HashMap,
+                    index: index.monkey_type(),
+                }),
+            },
             _ => Err(RuntimeError::IndexOperatorNotSupported {
                 left: left.monkey_type(),
                 index: index.monkey_type(),
             }),
         }
+    }
+
+    fn eval_hash_literal(&mut self, hashmap: Vec<(Expr, Expr)>) -> EvalResult {
+        let mut pairs = HashMap::new();
+        for (key, value) in hashmap {
+            pairs.insert(self.eval_expr(key)?, self.eval_expr(value)?);
+        }
+        Ok(Object::HashMap(pairs))
     }
 }
 
@@ -300,7 +318,7 @@ fn is_truthy(obj: Object) -> bool {
         FALSE => false,
         NULL => false,
         Object::Int(i) if i == 0 => false,
-        Object::String(s) if s.len() == 0 => false,
+        Object::String(s) if s.is_empty() => false,
         _ => true,
     }
 }
@@ -673,6 +691,31 @@ mod tests {
             "[1, 2, 3][-1]",
         ];
         let expected = [Object::Int(1), Object::Int(2), Object::Int(3), NULL, NULL];
+
+        test_eval!(inputs, expected);
+    }
+
+    #[test]
+    fn eval_hashmap_literal() {
+        let inputs = ["{\"one\": 10 - 9, 3 + 3: 7}"];
+        let hash = {
+            let mut hashmap = HashMap::new();
+            hashmap.insert(Object::String("one".to_owned()), Object::Int(1));
+            hashmap.insert(Object::Int(6), Object::Int(7));
+            hashmap
+        };
+
+        test_eval!(inputs, [Object::HashMap(hash)])
+    }
+
+    #[test]
+    fn eval_hashmap_index_expr() {
+        let inputs = [
+            "{\"foo\": 5}[\"foo\"]",
+            "{\"foo\": 5}[\"bar\"]",
+            "{3: true}[3]",
+        ];
+        let expected = [Object::Int(5), NULL, Object::Bool(true)];
 
         test_eval!(inputs, expected);
     }

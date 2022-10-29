@@ -5,7 +5,7 @@ use std::convert::TryFrom;
 use std::fmt;
 
 #[derive(Debug, PartialEq, PartialOrd)]
-enum Precendence {
+enum Precedence {
     Lowest,
     Equals,
     LessGreater,
@@ -16,16 +16,16 @@ enum Precendence {
     Index,
 }
 
-impl From<&Token> for Precendence {
+impl From<&Token> for Precedence {
     fn from(token: &Token) -> Self {
         match token {
-            Token::Eq | Token::NotEq => Precendence::Equals,
-            Token::Lt | Token::Gt | Token::Le | Token::Ge => Precendence::LessGreater,
-            Token::Plus | Token::Minus => Precendence::Sum,
-            Token::Slash | Token::Asterisk | Token::Percent => Precendence::Product,
-            Token::Lparen => Precendence::Call,
-            Token::Lbracket => Precendence::Index,
-            _ => Precendence::Lowest,
+            Token::Eq | Token::NotEq => Precedence::Equals,
+            Token::Lt | Token::Gt | Token::Le | Token::Ge => Precedence::LessGreater,
+            Token::Plus | Token::Minus => Precedence::Sum,
+            Token::Slash | Token::Asterisk | Token::Percent => Precedence::Product,
+            Token::Lparen => Precedence::Call,
+            Token::Lbracket => Precedence::Index,
+            _ => Precedence::Lowest,
         }
     }
 }
@@ -141,12 +141,12 @@ impl<'a> Parser<'a> {
         self.errors.push(ParserError(reason.to_owned()));
     }
 
-    fn peek_prec(&self) -> Precendence {
-        Precendence::from(&self.peek_tok)
+    fn peek_prec(&self) -> Precedence {
+        Precedence::from(&self.peek_tok)
     }
 
-    fn current_prec(&self) -> Precendence {
-        Precendence::from(&self.current_tok)
+    fn current_prec(&self) -> Precedence {
+        Precedence::from(&self.current_tok)
     }
 
     fn parse_statement(&mut self) -> Option<Stmt> {
@@ -167,7 +167,7 @@ impl<'a> Parser<'a> {
 
         self.next_token().expect_peek(Token::Assign)?.next_token();
 
-        let value = self.parse_expr(Precendence::Lowest)?;
+        let value = self.parse_expr(Precedence::Lowest)?;
         if self.peek_tok == Token::Semicolon {
             self.next_token();
         }
@@ -176,7 +176,7 @@ impl<'a> Parser<'a> {
 
     fn parse_return_statement(&mut self) -> Option<Stmt> {
         // To expression token(s)
-        let return_val = self.next_token().parse_expr(Precendence::Lowest)?;
+        let return_val = self.next_token().parse_expr(Precedence::Lowest)?;
         if self.peek_tok == Token::Semicolon {
             self.next_token();
         }
@@ -184,7 +184,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_expr_stmt(&mut self) -> Option<Stmt> {
-        let expr = self.parse_expr(Precendence::Lowest)?;
+        let expr = self.parse_expr(Precedence::Lowest)?;
         // Optional semicolon
         if self.peek_tok == Token::Semicolon {
             self.next_token();
@@ -192,7 +192,7 @@ impl<'a> Parser<'a> {
         Some(Stmt::Expr(expr))
     }
 
-    fn parse_expr(&mut self, precendence: Precendence) -> Option<Expr> {
+    fn parse_expr(&mut self, precedence: Precedence) -> Option<Expr> {
         let mut left_exp = match self.current_tok {
             Token::Ident(_) => self
                 .parse_ident_expr()
@@ -209,6 +209,7 @@ impl<'a> Parser<'a> {
             Token::Lparen => self.parse_grouped_expr()?,
             Token::If => self.parse_if_expr()?,
             Token::Function => self.parse_function_expr()?,
+            Token::Lbrace => self.parse_hash_literal()?,
             _ => {
                 self.push_error(
                     format!("No prefix operator {:?} found", self.current_tok).as_ref(),
@@ -217,7 +218,7 @@ impl<'a> Parser<'a> {
             }
         };
 
-        while self.peek_tok != Token::Semicolon && precendence < self.peek_prec() {
+        while self.peek_tok != Token::Semicolon && precedence < self.peek_prec() {
             left_exp = match self.peek_tok {
                 Token::Plus
                 | Token::Minus
@@ -278,14 +279,14 @@ impl<'a> Parser<'a> {
         if self.current_tok != Token::Lparen {
             return None;
         }
-        let expr = self.next_token().parse_expr(Precendence::Lowest)?;
+        let expr = self.next_token().parse_expr(Precedence::Lowest)?;
         self.expect_peek(Token::Rparen)?;
         Some(expr)
     }
 
     fn parse_prefix_expr(&mut self) -> Option<Expr> {
         let prefix_op = ast::PrefixOp::try_from(&self.current_tok).ok()?;
-        let expr = self.next_token().parse_expr(Precendence::Prefix)?;
+        let expr = self.next_token().parse_expr(Precedence::Prefix)?;
         Some(Expr::Prefix {
             op: prefix_op,
             expr: Box::new(expr),
@@ -307,7 +308,7 @@ impl<'a> Parser<'a> {
         let condition = self
             .expect_peek(Token::Lparen)?
             .next_token() // To expresion
-            .parse_expr(Precendence::Lowest)?;
+            .parse_expr(Precedence::Lowest)?;
         let consequence = self
             .expect_peek(Token::Rparen)?
             .expect_peek(Token::Lbrace)?
@@ -407,11 +408,11 @@ impl<'a> Parser<'a> {
             return Some(exprs);
         }
 
-        exprs.push(self.next_token().parse_expr(Precendence::Lowest)?);
+        exprs.push(self.next_token().parse_expr(Precedence::Lowest)?);
 
         while self.peek_tok == Token::Comma {
             self.next_token().next_token();
-            exprs.push(self.parse_expr(Precendence::Lowest)?);
+            exprs.push(self.parse_expr(Precedence::Lowest)?);
         }
         self.expect_peek(end)?;
 
@@ -419,12 +420,31 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_index_expr(&mut self, left: Expr) -> Option<Expr> {
-        let index = self.next_token().parse_expr(Precendence::Lowest)?;
+        let index = self.next_token().parse_expr(Precedence::Lowest)?;
         self.expect_peek(Token::Rbracket)?;
         Some(Expr::Index {
             expr: Box::new(left),
             index: Box::new(index),
         })
+    }
+
+    fn parse_hash_literal(&mut self) -> Option<Expr> {
+        let mut pairs = Vec::new();
+        while self.peek_tok != Token::Rbrace {
+            self.next_token();
+            let key = self.parse_expr(Precedence::Lowest)?;
+            let value = self
+                .expect_peek(Token::Colon)?
+                .next_token()
+                .parse_expr(Precedence::Lowest)?;
+            pairs.push((key, value));
+            if self.peek_tok != Token::Rbrace && self.expect_peek(Token::Comma).is_none() {
+                return None;
+            }
+        }
+        self.expect_peek(Token::Rbrace)?;
+
+        Some(Expr::HashLiteral(pairs))
     }
 }
 
@@ -839,6 +859,83 @@ mod tests {
                     right: Box::new(Expr::IntegerLiteral(1))
                 })
             }),
+            res.0[0]
+        )
+    }
+
+    #[test]
+    fn parse_hash_literal_with_literal_string_keys() {
+        let input = "{\"one\": 1, \"two\": 2, \"three\": 3}";
+        let lexer = Lexer::new(input);
+        let parser = Parser::new(lexer);
+
+        let res = parser.parse_program().expect("Should have no errors");
+        assert_eq!(1, res.0.len());
+        assert_eq!(
+            Stmt::Expr(Expr::HashLiteral(vec![
+                (
+                    Expr::StringLiteral("one".to_owned()),
+                    Expr::IntegerLiteral(1)
+                ),
+                (
+                    Expr::StringLiteral("two".to_owned()),
+                    Expr::IntegerLiteral(2)
+                ),
+                (
+                    Expr::StringLiteral("three".to_owned()),
+                    Expr::IntegerLiteral(3)
+                )
+            ])),
+            res.0[0]
+        )
+    }
+
+    #[test]
+    fn parse_empty_hash_literal() {
+        let input = "{}";
+        let lexer = Lexer::new(input);
+        let parser = Parser::new(lexer);
+
+        let res = parser.parse_program().expect("Should have no errors");
+        assert_eq!(1, res.0.len());
+        assert_eq!(Stmt::Expr(Expr::HashLiteral(Vec::new())), res.0[0])
+    }
+
+    #[test]
+    fn parse_hash_literal_with_expressions() {
+        let input = "{\"one\": 0 + 1, \"two\": 10 - 8, \"three\": 15 / 5}";
+        let lexer = Lexer::new(input);
+        let parser = Parser::new(lexer);
+
+        let res = parser.parse_program().expect("Should have no errors");
+        assert_eq!(1, res.0.len());
+        assert_eq!(
+            Stmt::Expr(Expr::HashLiteral(vec![
+                (
+                    Expr::StringLiteral("one".to_owned()),
+                    Expr::Infix {
+                        left: Box::new(Expr::IntegerLiteral(0)),
+                        op: ast::InfixOp::Plus,
+                        right: Box::new(Expr::IntegerLiteral(1))
+                    }
+                ),
+                (
+                    Expr::StringLiteral("two".to_owned()),
+                    Expr::Infix {
+                        left: Box::new(Expr::IntegerLiteral(10)),
+                        op: ast::InfixOp::Minus,
+                        right: Box::new(Expr::IntegerLiteral(8))
+                    }
+                ),
+                (
+                    Expr::StringLiteral("three".to_owned()),
+                    Expr::Infix {
+                        left: Box::new(Expr::IntegerLiteral(15)),
+                        op: ast::InfixOp::Slash,
+                        right: Box::new(Expr::IntegerLiteral(5))
+                    }
+                )
+            ])),
             res.0[0]
         )
     }

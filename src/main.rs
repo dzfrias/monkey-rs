@@ -52,7 +52,7 @@ fn start_repl(vi: bool) -> Result<()> {
                         }
                     }
                 }
-                println!("");
+                println!();
             }
             Err(ReadlineError::Interrupted) => break,
             Err(ReadlineError::Eof) => break,
